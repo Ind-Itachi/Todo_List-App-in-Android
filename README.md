@@ -15,6 +15,7 @@ video playing when the app is minimised or the phone is locked.
 ## Features
 - Full YouTube mobile site (`m.youtube.com`) inside the app; sign in works with cookies kept.
 - **Background playback**: press Home or lock the screen and the video keeps playing.
+- **Ad blocking**: video ads are removed before they are scheduled; any that slip through are muted and skipped instantly. Ad banners and promoted feed items are hidden.
 - Media notification + lock-screen controls: play/pause, back 10 s, forward 10 s, seek bar, close.
 - Video thumbnail and title on the lock screen.
 - Pauses for phone calls and resumes after; pauses when another app starts playing music.
@@ -28,6 +29,7 @@ video playing when the app is minimised or the phone is locked.
 | `BackgroundWebView` | Always reports itself as visible, so Chromium never suspends the page. |
 | `MainActivity` | Never calls `webView.onPause()` / `pauseTimers()`; keeps the renderer at high priority. |
 | `assets/background_play.js` | Makes `document.hidden` always `false`, blocks `visibilitychange`, and resumes the video if something pauses it while the app is in the background. Reports state to the app. |
+| `assets/adblock.js` + `isAdRequest()` | Strip ad data from YouTube's responses, skip leftover ads, hide ad elements, and block ad servers. |
 | `PlaybackService` | Foreground service (`mediaPlayback`) with a wake lock + Wi-Fi lock, media session, notification and audio focus. |
 
 ## Tips

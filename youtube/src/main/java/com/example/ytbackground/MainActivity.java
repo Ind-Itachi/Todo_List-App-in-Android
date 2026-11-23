@@ -17,6 +17,7 @@ import android.webkit.JavascriptInterface;
 import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -38,6 +39,7 @@ import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.webkit.WebViewCompat;
 import androidx.webkit.WebViewFeature;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -52,6 +54,18 @@ public class MainActivity extends AppCompatActivity implements PlayerController 
 
     private static final String HOME_URL = "https://m.youtube.com/";
     private static final Pattern URL_PATTERN = Pattern.compile("https?://\\S+");
+    /** Ad / ad-tracking servers. Requests to these (and their subdomains) are refused. */
+    private static final String[] AD_HOSTS = {
+            "doubleclick.net", "googlesyndication.com", "googleadservices.com",
+            "googletagservices.com", "googletagmanager.com", "google-analytics.com",
+            "imasdk.googleapis.com", "adservice.google.com", "pagead2.googlesyndication.com"
+    };
+    /** Ad endpoints on youtube.com itself. */
+    private static final String[] AD_PATHS = {
+            "/pagead/", "/api/stats/ads", "/ptracking", "/get_midroll_info",
+            "/youtubei/v1/player/ad_break", "/pcs/activeview", "/ad_data_204", "/generate_204?ad"
+    };
+
     private static final String[] INTERNAL_DOMAINS = {
             "youtube.com", "youtu.be", "youtube-nocookie.com",
             "google.com", "googleusercontent.com", "gstatic.com", "ggpht.com"
@@ -79,7 +93,8 @@ public class MainActivity extends AppCompatActivity implements PlayerController 
         fullscreenContainer = findViewById(R.id.fullscreenContainer);
 
         applySystemBarInsets();
-        injectScript = readAsset("background_play.js");
+        // Ad blocker first, so it is in place before YouTube's scripts run.
+        injectScript = readAsset("adblock.js") + "\n" + readAsset("background_play.js");
         setupWebView();
         PlaybackService.setController(this);
 
@@ -188,6 +203,15 @@ public class MainActivity extends AppCompatActivity implements PlayerController 
             }
 
             @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                if (isAdRequest(request.getUrl())) {
+                    return new WebResourceResponse("text/plain", "utf-8",
+                            new ByteArrayInputStream(new byte[0]));
+                }
+                return super.shouldInterceptRequest(view, request);
+            }
+
+            @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 super.onPageStarted(view, url, favicon);
                 if (!documentStartScriptInstalled) injectScript();
@@ -268,6 +292,24 @@ public class MainActivity extends AppCompatActivity implements PlayerController 
         if (scheme.equals("vnd.youtube")) return true;
         openExternally(uri); // mailto:, tel:, market:, ...
         return true;
+    }
+
+    static boolean isAdRequest(Uri uri) {
+        String host = uri.getHost();
+        if (host == null) return false;
+        host = host.toLowerCase(Locale.ROOT);
+        for (String d : AD_HOSTS) {
+            if (host.equals(d) || host.endsWith("." + d)) return true;
+        }
+        if (host.equals("youtube.com") || host.endsWith(".youtube.com")) {
+            String path = uri.getEncodedPath() == null ? "" : uri.getEncodedPath();
+            String query = uri.getEncodedQuery();
+            String full = query == null ? path : path + "?" + query;
+            for (String p : AD_PATHS) {
+                if (full.startsWith(p)) return true;
+            }
+        }
+        return false;
     }
 
     private static boolean isInternalHost(@Nullable String host) {
