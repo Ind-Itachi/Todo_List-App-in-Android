@@ -18,6 +18,7 @@ final class Counter {
     private static final String KEY_BUBBLE = "bubble_enabled";
     private static final String KEY_BUBBLE_X = "bubble_x";
     private static final String KEY_BUBBLE_Y = "bubble_y";
+    private static final String KEY_TILT = "tilt_enabled";
 
     private static Integer cached;
     private static final List<Listener> listeners = new ArrayList<>();
@@ -62,6 +63,14 @@ final class Counter {
 
     static void setBubbleEnabled(Context c, boolean on) {
         prefs(c).edit().putBoolean(KEY_BUBBLE, on).apply();
+    }
+
+    static boolean tiltEnabled(Context c) {
+        return prefs(c).getBoolean(KEY_TILT, true);
+    }
+
+    static void setTiltEnabled(Context c, boolean on) {
+        prefs(c).edit().putBoolean(KEY_TILT, on).apply();
     }
 
     static int bubbleX(Context c, int def) {

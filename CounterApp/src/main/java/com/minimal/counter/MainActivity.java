@@ -134,8 +134,23 @@ public class MainActivity extends Activity implements Counter.Listener {
 
         setContentView(root);
         render(false);
+        handleWidgetTap(getIntent());
 
         if (savedInstanceState == null) maybeOfferBubble();
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleWidgetTap(intent);
+    }
+
+    /** Opening the app from the Glass clock turns its tilt effect back on if it was switched off. */
+    private void handleWidgetTap(Intent i) {
+        if (i != null && i.getBooleanExtra(ClockWidget.EXTRA_FROM_WIDGET, false)) {
+            Counter.setTiltEnabled(this, true);
+        }
     }
 
     @Override
@@ -149,7 +164,7 @@ public class MainActivity extends Activity implements Counter.Listener {
     @Override
     protected void onResume() {
         super.onResume();
-        if (bubbleActive()) BubbleService.start(this);
+        if (BubbleService.shouldRun(this)) BubbleService.start(this);
         else BubbleService.stop(this);
         renderDot();
     }
@@ -226,7 +241,7 @@ public class MainActivity extends Activity implements Counter.Listener {
         }
         boolean on = !Counter.bubbleEnabled(this);
         Counter.setBubbleEnabled(this, on);
-        if (on) BubbleService.start(this);
+        if (BubbleService.shouldRun(this)) BubbleService.start(this);
         else BubbleService.stop(this);
         renderDot();
         Toast.makeText(this, on ? R.string.bubble_enabled : R.string.bubble_disabled,

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Body of the rectangular liquid-glass panel: smoky frost, top sheen, refraction band.
+     Shape drawables stretch to any widget size without distortion. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- smoky frost -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/glass_radius" />
+            <solid android:color="#2E141419" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/glass_radius" />
+            <gradient android:type="linear" android:angle="270"
+                android:startColor="#24FFFFFF" android:centerColor="#12FFFFFF" android:endColor="#2EFFFFFF" />
+        </shape>
+    </item>
+    <!-- sheen on the upper half -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/glass_radius" />
+            <gradient android:type="linear" android:angle="270" android:centerY="0.42"
+                android:startColor="#38FFFFFF" android:centerColor="#00FFFFFF" android:endColor="#00FFFFFF" />
+        </shape>
+    </item>
+    <!-- refraction band: darker just inside the edge -->
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/glass_radius" />
+            <stroke android:width="9dp" android:color="#0F000000" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <corners android:radius="@dimen/glass_radius" />
+            <stroke android:width="4dp" android:color="#0F000000" />
+        </shape>
+    </item>
+</layer-list>

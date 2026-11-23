@@ -1,20 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Glass clock: rounded glass panel; light layers are clipped to the panel's rounded outline.
+     Resting positions of the lights are the margins below; the tilt effect shifts them. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@drawable/glass_rect"
+    android:clipToOutline="true">
 
     <ImageView
-        android:id="@+id/widget_glass"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="fitCenter"
-        android:src="@drawable/glass_bubble"
+        android:id="@+id/widget_glow"
+        android:layout_width="220dp"
+        android:layout_height="220dp"
+        android:layout_gravity="center"
+        android:layout_marginLeft="-70dp"
+        android:layout_marginTop="-90dp"
+        android:scaleType="fitXY"
+        android:src="@drawable/glass_glow"
+        android:importantForAccessibility="no" />
+
+    <ImageView
+        android:id="@+id/widget_caustic"
+        android:layout_width="160dp"
+        android:layout_height="160dp"
+        android:layout_gravity="center"
+        android:layout_marginLeft="40dp"
+        android:layout_marginTop="120dp"
+        android:scaleType="fitXY"
+        android:src="@drawable/glass_caustic"
         android:importantForAccessibility="no" />
 
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:id="@+id/widget_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
         android:gravity="center"
         android:orientation="vertical">
 
@@ -28,25 +48,32 @@
             android:includeFontPadding="false"
             android:singleLine="true"
             android:textColor="#FFFFFFFF"
-            android:textSize="34sp"
-            android:shadowColor="#99000000"
+            android:textSize="56sp"
+            android:shadowColor="#80000000"
             android:shadowDy="1"
-            android:shadowRadius="6" />
+            android:shadowRadius="8" />
 
         <TextClock
             android:id="@+id/widget_date"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="2dp"
-            android:format12Hour="EEE d MMM"
-            android:format24Hour="EEE d MMM"
+            android:format12Hour="EEEE, d MMMM"
+            android:format24Hour="EEEE, d MMMM"
             android:fontFamily="sans-serif-medium"
             android:includeFontPadding="false"
             android:singleLine="true"
             android:textColor="#E6FFFFFF"
-            android:textSize="11sp"
-            android:shadowColor="#99000000"
+            android:textSize="14sp"
+            android:shadowColor="#80000000"
             android:shadowDy="1"
-            android:shadowRadius="4" />
+            android:shadowRadius="5" />
     </LinearLayout>
+
+    <ImageView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:src="@drawable/glass_rect_rim"
+        android:importantForAccessibility="no" />
 </FrameLayout>

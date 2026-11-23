@@ -26,6 +26,9 @@ import android.widget.FrameLayout;
  * Tap the dot: +1. Drag it to move it (it snaps to the nearest side). Long-press: open the app.
  * While dragging, a close target (×) appears at the bottom; drop the dot on it to hide it until
  * the next time the app is opened and minimized.
+ *
+ * The same foreground service also drives the Glass clock widget's tilt effect ({@link WidgetTilt}),
+ * so there is only ever one notification.
  */
 public class BubbleService extends Service implements Counter.Listener {
 
@@ -36,6 +39,10 @@ public class BubbleService extends Service implements Counter.Listener {
     /** True while the app's own screen is showing; the dot hides then. */
     private static boolean appVisible;
     private static BubbleService instance;
+    /** Dot was dropped on the close target; stays hidden until the app is opened again. */
+    private static boolean dismissed;
+
+    private WidgetTilt tilt;
 
     private WindowManager wm;
     private GlassView bubble;
@@ -55,12 +62,31 @@ public class BubbleService extends Service implements Counter.Listener {
         Compat.startForegroundService(c, new Intent(c, BubbleService.class));
     }
 
+    static boolean bubbleWanted(Context c) {
+        return Counter.bubbleEnabled(c) && Compat.canDrawOverlays(c);
+    }
+
+    static boolean shouldRun(Context c) {
+        return bubbleWanted(c) || WidgetTilt.wanted(c);
+    }
+
+    /** Start or stop the service to match what's wanted. Safe to call from anywhere. */
+    static void refresh(Context c) {
+        try {
+            if (shouldRun(c)) start(c);
+            else if (instance != null) stop(c);
+        } catch (RuntimeException e) {
+            // Android may refuse to start it from the background; it starts next time the app opens.
+        }
+    }
+
     static void stop(Context c) {
         c.stopService(new Intent(c, BubbleService.class));
     }
 
     static void setAppVisible(boolean visible) {
         appVisible = visible;
+        if (visible) dismissed = false;
         if (instance != null) instance.updateVisibility();
     }
 
@@ -69,6 +95,7 @@ public class BubbleService extends Service implements Counter.Listener {
         super.onCreate();
         instance = this;
         wm = (WindowManager) getSystemService(WINDOW_SERVICE);
+        tilt = new WidgetTilt(this);
         buildBubble();
         buildZone();
         Counter.addListener(this);
@@ -78,12 +105,18 @@ public class BubbleService extends Service implements Counter.Listener {
     public int onStartCommand(Intent intent, int flags, int startId) {
         startForeground(NOTIFICATION_ID, buildNotification());
         boolean stopAsked = intent != null && ACTION_STOP.equals(intent.getAction());
-        if (stopAsked || !Counter.bubbleEnabled(this) || !Compat.canDrawOverlays(this)) {
-            if (stopAsked) Counter.setBubbleEnabled(this, false);
+        if (stopAsked) {
+            Counter.setBubbleEnabled(this, false);
+            Counter.setTiltEnabled(this, false);
+        }
+        if (!shouldRun(this)) {
             stopSelf();
             return START_NOT_STICKY;
         }
         updateVisibility();
+        tilt.setActive(WidgetTilt.wanted(this));
+        // Refresh the notification text for what's running now.
+        startForeground(NOTIFICATION_ID, buildNotification());
         return START_STICKY;
     }
 
@@ -91,6 +124,7 @@ public class BubbleService extends Service implements Counter.Listener {
     public void onDestroy() {
         Counter.removeListener(this);
         handler.removeCallbacksAndMessages(null);
+        tilt.setActive(false);
         detach();
         if (instance == this) instance = null;
         super.onDestroy();
@@ -174,14 +208,15 @@ public class BubbleService extends Service implements Counter.Listener {
         bubble.animate().scaleX(0f).scaleY(0f).alpha(0f).setDuration(180).withEndAction(new Runnable() {
             @Override
             public void run() {
+                dismissed = true;
                 detach();
-                stopSelf();
+                if (!WidgetTilt.wanted(BubbleService.this)) stopSelf();
             }
         }).start();
     }
 
     private void updateVisibility() {
-        boolean show = !appVisible && Counter.bubbleEnabled(this) && Compat.canDrawOverlays(this);
+        boolean show = !appVisible && !dismissed && bubbleWanted(this);
         if (show) attach();
         else detach();
     }
@@ -379,8 +414,8 @@ public class BubbleService extends Service implements Counter.Listener {
                 PendingIntent.FLAG_IMMUTABLE);
         return Compat.notificationBuilder(this, CHANNEL_ID, getString(R.string.bubble_channel))
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
-                .setContentTitle(getString(R.string.bubble_on))
-                .setContentText(getString(R.string.bubble_on_text))
+                .setContentTitle(getString(bubbleWanted(this) ? R.string.bubble_on : R.string.tilt_on))
+                .setContentText(getString(bubbleWanted(this) ? R.string.bubble_on_text : R.string.tilt_on_text))
                 .setOngoing(true)
                 .setShowWhen(false)
                 .setContentIntent(open)

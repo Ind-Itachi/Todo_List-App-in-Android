@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Specular light that slides across the glass as the phone tilts. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <gradient android:type="radial" android:gradientRadius="110dp"
+        android:startColor="#61FFFFFF" android:centerColor="#1FFFFFFF" android:endColor="#00FFFFFF" />
+</shape>

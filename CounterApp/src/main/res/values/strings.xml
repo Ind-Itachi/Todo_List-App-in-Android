@@ -21,5 +21,7 @@
     <string name="allow_appear_on_top">Turn on \"Allow permission\" for Counter, then come back.</string>
 
     <string name="widget_name">Glass clock</string>
-    <string name="widget_description">The time in a liquid-glass bubble</string>
+    <string name="widget_description">The time on a liquid-glass panel that catches the light as you tilt your phone</string>
+    <string name="tilt_on">Glass clock is live</string>
+    <string name="tilt_on_text">The light in your Glass clock follows your phone\'s tilt.</string>
 </resources>

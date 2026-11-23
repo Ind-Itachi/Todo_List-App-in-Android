@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Soft caustic glow near the bottom edge, moving opposite to the specular light. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <gradient android:type="radial" android:gradientRadius="80dp"
+        android:startColor="#40FFFFFF" android:endColor="#00FFFFFF" />
+</shape>

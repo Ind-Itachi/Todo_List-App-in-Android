@@ -23,9 +23,13 @@ It needs the **Appear on top** permission. On first launch the app offers to tur
 
 ## Glass clock widget
 
-A home-screen clock in the same liquid-glass bubble: the time and date inside a clear glass disc, with your wallpaper showing through. It updates itself every minute (no battery-draining background work) and follows the phone's 12/24-hour setting. Tap it to open Counter.
+A home-screen clock on a rounded liquid-glass panel: the time and full date over clear frosted glass, with your wallpaper showing through. The time updates itself every minute and follows the phone's 12/24-hour setting. Tap it to open Counter.
 
-To add it: long-press an empty spot on the home screen → **Widgets** → **Counter** → **Glass clock**, and drag it onto the home screen. It starts at 2×2; resize it bigger or smaller and the bubble and text scale with it (it stays round).
+**Live light (Android 12+):** as you tilt the phone, a soft reflection slides across the glass, a glow along the bottom edge slides the other way, and the time floats very slightly, so the panel catches the light like real glass. When you hold the phone still, the light drifts back to rest. It uses the phone's motion sensor only while the screen is on, and sends the widget tiny position-only updates (at most ~20 a second, and only while something is moving).
+
+Because Android only lets apps read motion sensors in the background with a visible notification, a "Glass clock is live" notification is shown while a Glass clock is on your home screen (it shares the notification with the floating counter when that's on). **Turn off** in the notification stops the live light (the clock keeps working); tap the clock once to turn it back on.
+
+To add it: long-press an empty spot on the home screen → **Widgets** → **Counter** → **Glass clock**, and drag it onto the home screen. It starts at 4×2 and can be resized to any shape; the text scales with it.
 
 ## Install
 
