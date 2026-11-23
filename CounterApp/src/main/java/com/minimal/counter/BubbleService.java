@@ -1,6 +1,7 @@
 package com.minimal.counter;
 
 import android.animation.ValueAnimator;
+import android.app.Dialog;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.app.Service;
@@ -19,12 +20,15 @@ import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
+import android.view.ViewGroup;
+import android.view.Window;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 
 /**
- * Keeps an orange floating dot with the current count on screen while the app is minimized.
+ * Keeps a floating orange "tinted glass" dot with the current count on screen while the app is
+ * minimized. On Android 12+ the screen behind the dot is blurred (when the phone allows it).
  * Tap the dot: +1. Drag it to move it (it snaps to the nearest side). Long-press: open the app.
  * While dragging, a close target (×) appears at the bottom; drop the dot on it to hide it until
  * the next time the app is opened and minimized.
@@ -41,7 +45,10 @@ public class BubbleService extends Service implements Counter.Listener {
     private static BubbleService instance;
 
     private WindowManager wm;
-    private FrameLayout bubble;
+    // The dot is its own (dialog) window so Android can blur what's behind it.
+    private Dialog bubble;
+    private Window win;
+    private View decor;
     private TextView label;
     private WindowManager.LayoutParams lp;
     private boolean attached;
@@ -113,7 +120,6 @@ public class BubbleService extends Service implements Counter.Listener {
 
     private void buildBubble() {
         int size = dp(60);
-        int pad = dp(8); // room for the shadow
 
         label = new TextView(this);
         label.setGravity(Gravity.CENTER);
@@ -122,28 +128,33 @@ public class BubbleService extends Service implements Counter.Listener {
         label.setFontFeatureSettings("tnum");
         label.setIncludeFontPadding(false);
         label.setMaxLines(1);
-        GradientDrawable dot = new GradientDrawable();
-        dot.setShape(GradientDrawable.OVAL);
-        dot.setColor(ORANGE);
-        label.setBackground(dot);
-        label.setElevation(dp(4));
+        label.setShadowLayer(dp(3), 0, dp(1), 0x80000000); // keeps white digits readable on light screens
+        label.setOnTouchListener(new DragTouch());
 
-        bubble = new FrameLayout(this);
-        bubble.setPadding(pad, pad, pad, pad);
-        bubble.setClipToPadding(false);
-        bubble.addView(label, new FrameLayout.LayoutParams(size, size));
-        bubble.setOnTouchListener(new DragTouch());
+        bubble = new Dialog(this, R.style.BubbleTheme);
+        bubble.setCancelable(false);
+        bubble.setCanceledOnTouchOutside(false);
+        bubble.setContentView(label, new ViewGroup.LayoutParams(size, size));
 
-        lp = new WindowManager.LayoutParams(
-                size + 2 * pad, size + 2 * pad,
-                Compat.TYPE_APPLICATION_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
-                        | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-                PixelFormat.TRANSLUCENT);
+        win = bubble.getWindow();
+        win.setType(Compat.TYPE_APPLICATION_OVERLAY);
+        win.setFormat(PixelFormat.TRANSLUCENT);
+        win.setBackgroundDrawable(new GlassDrawable(ORANGE, dp(1) * 1.3f));
+        win.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+        win.addFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN);
+        Compat.setBackgroundBlur(win, dp(16));
+        decor = win.getDecorView();
+
+        lp = win.getAttributes();
+        lp.width = size;
+        lp.height = size;
         lp.gravity = Gravity.TOP | Gravity.START;
         DisplayMetrics m = screen();
-        lp.x = Counter.bubbleX(this, m.widthPixels - lp.width);
+        lp.x = Counter.bubbleX(this, m.widthPixels - size);
         lp.y = Counter.bubbleY(this, m.heightPixels / 3);
+        win.setAttributes(lp);
 
         buildZone();
         render(Counter.get(this));
@@ -202,16 +213,8 @@ public class BubbleService extends Service implements Counter.Listener {
     /** Hides the dot (drop on the close target). It comes back next time the app is minimized. */
     private void dismiss() {
         showZone(false);
-        label.animate().cancel();
-        label.animate().scaleX(0f).scaleY(0f).setDuration(160).withEndAction(new Runnable() {
-            @Override
-            public void run() {
-                detach();
-                label.setScaleX(1f);
-                label.setScaleY(1f);
-                stopSelf();
-            }
-        }).start();
+        detach(); // window fades out
+        stopSelf();
     }
 
     private void render(int count) {
@@ -235,8 +238,9 @@ public class BubbleService extends Service implements Counter.Listener {
         clampToScreen();
         try {
             zone.setAlpha(0f);
-            wm.addView(zone, zoneLp);
-            wm.addView(bubble, lp);
+            wm.addView(zone, zoneLp); // added first, so the dot stays on top of it
+            win.setAttributes(lp);
+            bubble.show();
             attached = true;
         } catch (RuntimeException e) {
             attached = false; // permission was revoked
@@ -246,7 +250,10 @@ public class BubbleService extends Service implements Counter.Listener {
 
     private void detach() {
         if (!attached) return;
-        safeRemove(bubble);
+        try {
+            bubble.dismiss();
+        } catch (RuntimeException ignored) {
+        }
         safeRemove(zone);
         attached = false;
     }
@@ -268,7 +275,7 @@ public class BubbleService extends Service implements Counter.Listener {
         lp.x = x;
         lp.y = y;
         clampToScreen();
-        if (attached) wm.updateViewLayout(bubble, lp);
+        if (attached) win.setAttributes(lp);
     }
 
     private void snapToEdge() {
@@ -341,7 +348,7 @@ public class BubbleService extends Service implements Counter.Listener {
                     if (!dragging && !longPressed && (Math.abs(dx) > slop || Math.abs(dy) > slop)) {
                         dragging = true;
                         handler.removeCallbacks(longPress);
-                        bubble.getLocationOnScreen(loc);
+                        decor.getLocationOnScreen(loc);
                         offX = loc[0] - lp.x;
                         offY = loc[1] - lp.y;
                         showZone(true);

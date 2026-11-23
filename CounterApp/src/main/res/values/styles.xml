@@ -10,4 +10,17 @@
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:colorAccent">@color/fg</item>
     </style>
+
+    <!-- Floating counter window: transparent, floating, no dim, fades in/out.
+         Translucent is required for Android 12+ background blur behind the window. -->
+    <style name="BubbleTheme" parent="@android:style/Theme.Material.Dialog.NoActionBar">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowMinWidthMajor">0dp</item>
+        <item name="android:windowMinWidthMinor">0dp</item>
+        <item name="android:windowElevation">6dp</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation.Toast</item>
+    </style>
 </resources>

@@ -11,7 +11,7 @@ A minimal tally counter for Android (built for the Samsung Galaxy S24; works on 
 
 ## Floating counter (when the app is minimized)
 
-When you leave the app, an orange dot showing the count floats on top of whatever you're doing.
+When you leave the app, an orange tinted-glass dot showing the count floats on top of whatever you're doing. On Android 12+ the screen behind it is blurred, like frosted glass (if the phone has blur turned off, e.g. in power saving mode, it shows as see-through tinted glass).
 
 - **Tap the dot** → +1
 - **Drag** it to move it; it snaps to the nearest side of the screen
