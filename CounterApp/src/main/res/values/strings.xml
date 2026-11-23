@@ -19,4 +19,7 @@
     <string name="offer_allow">Turn on</string>
     <string name="not_now">Not now</string>
     <string name="allow_appear_on_top">Turn on \"Allow permission\" for Counter, then come back.</string>
+
+    <string name="widget_name">Glass clock</string>
+    <string name="widget_description">The time in a liquid-glass bubble</string>
 </resources>

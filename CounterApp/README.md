@@ -21,6 +21,12 @@ When you leave the app, a clear liquid-glass dot showing the count floats on top
 
 It needs the **Appear on top** permission. On first launch the app offers to turn it on and opens the setting: switch on *Allow permission* for Counter and go back. While the dot is on, Android shows a "Floating counter is on" notification; its **Turn off** button (or the dot at the bottom of the app) switches the dot off.
 
+## Glass clock widget
+
+A home-screen clock in the same liquid-glass bubble: the time and date inside a clear glass disc, with your wallpaper showing through. It updates itself every minute (no battery-draining background work) and follows the phone's 12/24-hour setting. Tap it to open Counter.
+
+To add it: long-press an empty spot on the home screen → **Widgets** → **Counter** → **Glass clock**, and drag it onto the home screen. It starts at 2×2; resize it bigger or smaller and the bubble and text scale with it (it stays round).
+
 ## Install
 
 1. Copy `Counter.apk` to the phone (or download it from GitHub on the phone).
@@ -30,10 +36,10 @@ It needs the **Appear on top** permission. On first launch the app offers to tur
 
 ## Build
 
-No Gradle or Android Studio needed — one Java file, built with the stock Android tools:
+No Gradle or Android Studio needed — a few Java files built with the stock Android tools. The first build downloads the Android 14 framework jar (~130 MB) from Maven Central:
 
 ```sh
-sudo apt-get install aapt dalvik-exchange zipalign apksigner android-sdk-platform-23 default-jdk
+sudo apt-get install aapt dalvik-exchange zipalign apksigner default-jdk curl
 ./build.sh            # -> build/Counter.apk
 ```
 

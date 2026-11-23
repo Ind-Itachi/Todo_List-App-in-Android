@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Builds a signed Counter APK without Gradle or Android Studio.
 #
-# Needs (Ubuntu/Debian):  sudo apt-get install aapt dalvik-exchange zipalign apksigner android-sdk-platform-23 default-jdk
+# Needs (Ubuntu/Debian):  sudo apt-get install aapt dalvik-exchange zipalign apksigner default-jdk curl
+#
+# It compiles against the Android 14 (API 34) framework. Without an Android SDK, that framework is
+# taken from Robolectric's "android-all" jar on Maven Central (downloaded once to ~/.cache).
+# To use a real SDK instead: ANDROID_JAR=$ANDROID_HOME/platforms/android-34/android.jar ./build.sh
 #
 # Signing key: set KEYSTORE / KS_PASS to use your own; otherwise a local key is
 # created at ~/.android/counter.jks. Keep using the same key, or Android will
@@ -9,7 +13,17 @@
 set -euo pipefail
 
 cd "$(dirname "$0")"
-ANDROID_JAR="${ANDROID_JAR:-/usr/lib/android-sdk/platforms/android-23/android.jar}"
+ALL_VER=14-robolectric-10818077
+if [ -z "${ANDROID_JAR:-}" ]; then
+  ANDROID_JAR="$HOME/.cache/counter-build/android-all-$ALL_VER.jar"
+  if [ ! -f "$ANDROID_JAR" ]; then
+    echo "• Downloading Android 14 framework (~130 MB, once)"
+    mkdir -p "$(dirname "$ANDROID_JAR")"
+    curl -fL -o "$ANDROID_JAR.part" \
+      "https://repo.maven.apache.org/maven2/org/robolectric/android-all/$ALL_VER/android-all-$ALL_VER.jar"
+    mv "$ANDROID_JAR.part" "$ANDROID_JAR"
+  fi
+fi
 KEYSTORE="${KEYSTORE:-$HOME/.android/counter.jks}"
 KS_PASS="${KS_PASS:-android}"
 OUT=build
@@ -27,8 +41,8 @@ aapt package -f -m \
   -F "$OUT/unsigned.apk"
 
 echo "• Compiling Java"
-javac -nowarn -Xlint:-options -source 8 -target 8 \
-  -bootclasspath "$ANDROID_JAR" \
+javac -nowarn -Xlint:-options --release 8 \
+  -classpath "$ANDROID_JAR" \
   -d "$OUT/classes" \
   $(find "$SRC/java" "$OUT/gen" -name '*.java')
 
