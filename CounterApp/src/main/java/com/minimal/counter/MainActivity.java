@@ -3,10 +3,13 @@ package com.minimal.counter;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
-import android.content.SharedPreferences;
+import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Typeface;
+import android.graphics.drawable.GradientDrawable;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
@@ -16,31 +19,29 @@ import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 /**
  * A minimal tally counter.
  *
  * Tap anywhere: +1. "−" button: −1. "Reset": back to 0 (asks first).
  * Volume up / down also count +1 / −1, so you can count without looking.
- * The count is saved and survives closing the app.
+ * Orange dot (bottom centre): turns the floating counter bubble on/off. When on, an orange
+ * dot showing the count floats over other apps while this app is minimized; tap it to count.
  */
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements Counter.Listener {
 
-    private static final String PREFS = "counter";
-    private static final String KEY_COUNT = "count";
     // View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR (API 26); literal so we can compile against an older SDK.
     private static final int FLAG_LIGHT_NAV_BAR = 0x00000010;
+    private static final String KEY_ASKED_BUBBLE = "asked_bubble";
 
-    private int count;
     private TextView countView;
     private TextView hintView;
-    private SharedPreferences prefs;
+    private View dotToggle;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
-        count = Math.max(0, prefs.getInt(KEY_COUNT, 0));
 
         int fg = getResources().getColor(R.color.fg, getTheme());
         int faint = withAlpha(fg, 0x66);
@@ -84,7 +85,7 @@ public class MainActivity extends Activity {
         hintLp.topMargin = dp(120);
         root.addView(hintView, hintLp);
 
-        // Bottom bar: "−" on the left, "Reset" on the right.
+        // Bottom bar: "−" left, orange bubble toggle centre, "Reset" right.
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER_VERTICAL);
@@ -97,10 +98,26 @@ public class MainActivity extends Activity {
                 change(-1, v);
             }
         });
-        bar.addView(minus, new LinearLayout.LayoutParams(dp(72), dp(72)));
+        bar.addView(minus, new LinearLayout.LayoutParams(dp(96), dp(72)));
 
-        View spacer = new View(this);
-        bar.addView(spacer, new LinearLayout.LayoutParams(0, 1, 1f));
+        bar.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
+
+        FrameLayout dotHolder = new FrameLayout(this);
+        dotHolder.setClickable(true);
+        dotHolder.setSoundEffectsEnabled(false);
+        dotHolder.setContentDescription(getString(R.string.bubble_toggle));
+        dotHolder.setBackgroundResource(borderlessRipple());
+        dotToggle = new View(this);
+        dotHolder.addView(dotToggle, new FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER));
+        dotHolder.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                toggleBubble();
+            }
+        });
+        bar.addView(dotHolder, new LinearLayout.LayoutParams(dp(72), dp(72)));
+
+        bar.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
 
         TextView reset = textButton(getString(R.string.reset), 15, faint);
         reset.setOnClickListener(new View.OnClickListener() {
@@ -109,52 +126,61 @@ public class MainActivity extends Activity {
                 confirmReset();
             }
         });
-        bar.addView(reset, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, dp(72)));
+        bar.addView(reset, new LinearLayout.LayoutParams(dp(96), dp(72)));
 
         root.addView(bar, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM));
 
         setContentView(root);
         render(false);
+
+        if (savedInstanceState == null) maybeOfferBubble();
     }
 
-    private TextView textButton(String label, int sp, int color) {
-        TextView b = new TextView(this);
-        b.setText(label);
-        b.setTextColor(color);
-        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
-        b.setGravity(Gravity.CENTER);
-        b.setPadding(dp(16), 0, dp(16), 0);
-        b.setClickable(true);
-        b.setSoundEffectsEnabled(false);
-        TypedValue tv = new TypedValue();
-        getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, tv, true);
-        b.setBackgroundResource(tv.resourceId);
-        return b;
+    @Override
+    protected void onStart() {
+        super.onStart();
+        BubbleService.setAppVisible(true);
+        Counter.addListener(this);
+        render(false);
     }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (bubbleActive()) BubbleService.start(this);
+        else BubbleService.stop(this);
+        renderDot();
+    }
+
+    @Override
+    protected void onStop() {
+        Counter.removeListener(this);
+        BubbleService.setAppVisible(false); // app minimized: show the floating dot
+        super.onStop();
+    }
+
+    @Override
+    public void onCountChanged(int count) {
+        render(false);
+    }
+
+    // ---------------------------------------------------------------- counting
 
     private void change(int delta, View source) {
-        int next = Math.max(0, count + delta);
-        if (next == count) return;
-        count = next;
-        save();
-        if (source != null) {
-            source.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
-        }
+        if (!Counter.add(this, delta)) return;
+        if (source != null) source.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
         render(true);
     }
 
     private void confirmReset() {
-        if (count == 0) return;
+        if (Counter.get(this) == 0) return;
         new AlertDialog.Builder(this)
                 .setTitle(R.string.reset_title)
                 .setPositiveButton(R.string.reset, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        count = 0;
-                        save();
-                        render(false);
+                        Counter.set(MainActivity.this, 0);
                     }
                 })
                 .setNegativeButton(R.string.cancel, null)
@@ -162,6 +188,7 @@ public class MainActivity extends Activity {
     }
 
     private void render(boolean animate) {
+        int count = Counter.get(this);
         String text = String.valueOf(count);
         countView.setText(text);
         countView.setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeFor(text.length()));
@@ -184,9 +211,69 @@ public class MainActivity extends Activity {
         return 48;
     }
 
-    private void save() {
-        prefs.edit().putInt(KEY_COUNT, count).apply();
+    // ------------------------------------------------------------ bubble toggle
+
+    private boolean bubbleActive() {
+        return Counter.bubbleEnabled(this) && Compat.canDrawOverlays(this);
     }
+
+    private void toggleBubble() {
+        if (!Compat.canDrawOverlays(this)) {
+            Counter.setBubbleEnabled(this, true);
+            requestOverlayPermission();
+            return;
+        }
+        boolean on = !Counter.bubbleEnabled(this);
+        Counter.setBubbleEnabled(this, on);
+        if (on) BubbleService.start(this);
+        else BubbleService.stop(this);
+        renderDot();
+        Toast.makeText(this, on ? R.string.bubble_enabled : R.string.bubble_disabled,
+                Toast.LENGTH_SHORT).show();
+    }
+
+    /** First launch: explain the floating dot once and offer to turn it on. */
+    private void maybeOfferBubble() {
+        if (Compat.canDrawOverlays(this)) return;
+        if (Counter.prefs(this).getBoolean(KEY_ASKED_BUBBLE, false)) return;
+        Counter.prefs(this).edit().putBoolean(KEY_ASKED_BUBBLE, true).apply();
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.offer_title)
+                .setMessage(R.string.offer_text)
+                .setPositiveButton(R.string.offer_allow, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        Counter.setBubbleEnabled(MainActivity.this, true);
+                        requestOverlayPermission();
+                    }
+                })
+                .setNegativeButton(R.string.not_now, null)
+                .show();
+    }
+
+    private void requestOverlayPermission() {
+        Toast.makeText(this, R.string.allow_appear_on_top, Toast.LENGTH_LONG).show();
+        try {
+            startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + getPackageName())));
+        } catch (RuntimeException e) {
+            startActivity(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION));
+        }
+    }
+
+    private void renderDot() {
+        GradientDrawable d = new GradientDrawable();
+        d.setShape(GradientDrawable.OVAL);
+        if (bubbleActive()) {
+            d.setColor(BubbleService.ORANGE);
+        } else {
+            d.setColor(0x00000000);
+            d.setStroke(dp(2), BubbleService.ORANGE);
+        }
+        dotToggle.setBackground(d);
+    }
+
+    // ---------------------------------------------------------------- keys
 
     // Volume keys count too (single press = one step; holding the key doesn't run away).
     @Override
@@ -206,6 +293,26 @@ public class MainActivity extends Activity {
             return true;
         }
         return super.onKeyUp(keyCode, event);
+    }
+
+    // ---------------------------------------------------------------- utils
+
+    private TextView textButton(String label, int sp, int color) {
+        TextView b = new TextView(this);
+        b.setText(label);
+        b.setTextColor(color);
+        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
+        b.setGravity(Gravity.CENTER);
+        b.setClickable(true);
+        b.setSoundEffectsEnabled(false);
+        b.setBackgroundResource(borderlessRipple());
+        return b;
+    }
+
+    private int borderlessRipple() {
+        TypedValue tv = new TypedValue();
+        getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, tv, true);
+        return tv.resourceId;
     }
 
     private boolean isNight() {

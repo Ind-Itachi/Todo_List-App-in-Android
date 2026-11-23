@@ -6,7 +6,19 @@ A minimal tally counter for Android (built for the Samsung Galaxy S24; works on 
 - **−** (bottom left) → −1 (never goes below 0)
 - **Reset** (bottom right) → back to 0, after a confirmation
 - **Volume up / down** → +1 / −1, so you can count without looking at the screen
+- **Orange dot** (bottom centre) → turns the floating counter on/off (filled = on, ring = off)
 - Follows the system light/dark mode, gives a light haptic tick on every count, and remembers the count after the app is closed.
+
+## Floating counter (when the app is minimized)
+
+When you leave the app, an orange dot showing the count floats on top of whatever you're doing.
+
+- **Tap the dot** → +1
+- **Drag** it to move it; it snaps to the nearest side of the screen
+- **Hold** it → opens the app (for −1 and Reset)
+- It hides while the app itself is open, and comes back when you minimize it.
+
+It needs the **Appear on top** permission. On first launch the app offers to turn it on and opens the setting: switch on *Allow permission* for Counter and go back. While the dot is on, Android shows a "Floating counter is on" notification; its **Turn off** button (or the orange dot in the app) switches the dot off.
 
 ## Install
 
