@@ -2,7 +2,7 @@
 
 ---
 
-# YT Background (module `youtube`)
+# Satsang Youtube (module `youtube`)
 
 A second app in this project that opens **YouTube as a web page** and keeps the
 video playing when the app is minimised or the phone is locked.

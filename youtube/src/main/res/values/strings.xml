@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">YT Background</string>
+    <string name="app_name">Satsang Youtube</string>
     <string name="channel_name">Background playback</string>
     <string name="channel_description">Keeps videos playing while the app is minimised or the screen is locked</string>
     <string name="status_playing">Playing in background</string>

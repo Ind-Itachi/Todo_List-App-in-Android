@@ -1,4 +1,4 @@
-name: Build YT Background APK
+name: Build Satsang Youtube APK
 
 on:
   push:
@@ -25,9 +25,10 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew :youtube:assembleDebug --stacktrace
+          cp youtube/build/outputs/apk/debug/youtube-debug.apk Satsang-Youtube.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: YT-Background-apk
-          path: youtube/build/outputs/apk/debug/*.apk
+          name: Satsang-Youtube-apk
+          path: Satsang-Youtube.apk

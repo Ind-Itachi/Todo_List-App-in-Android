@@ -4,7 +4,9 @@
     android:viewportWidth="24"
     android:viewportHeight="24"
     android:tint="#FFFFFFFF">
+    <!-- Rounded play button with the triangle cut out. -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M12,3v9.28c-0.47,-0.17 -0.97,-0.28 -1.5,-0.28C8.01,12 6,14.01 6,16.5S8.01,21 10.5,21c2.31,0 4.2,-1.75 4.45,-4H15V6h4V3h-7z" />
+        android:fillType="evenOdd"
+        android:pathData="M6,5h12a4,4 0,0 1,4 4v6a4,4 0,0 1,-4 4H6a4,4 0,0 1,-4 -4V9a4,4 0,0 1,4 -4zM10,8.5v7l6,-3.5z" />
 </vector>
