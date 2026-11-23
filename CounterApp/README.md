@@ -6,20 +6,20 @@ A minimal tally counter for Android (built for the Samsung Galaxy S24; works on 
 - **−** (bottom left) → −1 (never goes below 0)
 - **Reset** (bottom right) → back to 0, after a confirmation
 - **Volume up / down** → +1 / −1, so you can count without looking at the screen
-- **Orange dot** (bottom centre) → turns the floating counter on/off (filled = on, ring = off)
+- **Dot** (bottom centre) → turns the floating counter on/off (filled = on, ring = off)
 - Follows the system light/dark mode, gives a light haptic tick on every count, and remembers the count after the app is closed.
 
 ## Floating counter (when the app is minimized)
 
-When you leave the app, an orange tinted-glass dot showing the count floats on top of whatever you're doing. On Android 12+ the screen behind it is blurred, like frosted glass (if the phone has blur turned off, e.g. in power saving mode, it shows as see-through tinted glass).
+When you leave the app, a clear liquid-glass dot showing the count floats on top of whatever you're doing. It squishes when you press it, wobbles like a drop of water when you let go, sends a light ripple out from your finger, and stretches as you drag it.
 
 - **Tap the dot** → +1
 - **Drag** it to move it; it snaps to the nearest side of the screen
 - **Hold** it → opens the app (for −1 and Reset)
-- **Drag it to the × at the bottom** of the screen (it appears while you drag) → hides the dot. It comes back the next time you open and minimize the app; to turn it off for good, use the orange dot in the app.
+- **Drag it to the × at the bottom** of the screen (it appears while you drag) → hides the dot. It comes back the next time you open and minimize the app; to turn it off for good, use the dot at the bottom of the app.
 - It hides while the app itself is open, and comes back when you minimize it.
 
-It needs the **Appear on top** permission. On first launch the app offers to turn it on and opens the setting: switch on *Allow permission* for Counter and go back. While the dot is on, Android shows a "Floating counter is on" notification; its **Turn off** button (or the orange dot in the app) switches the dot off.
+It needs the **Appear on top** permission. On first launch the app offers to turn it on and opens the setting: switch on *Allow permission* for Counter and go back. While the dot is on, Android shows a "Floating counter is on" notification; its **Turn off** button (or the dot at the bottom of the app) switches the dot off.
 
 ## Install
 

@@ -21,14 +21,6 @@ final class Compat {
 
     private Compat() {}
 
-    /** Window.setBackgroundBlurRadius (API 31): blurs what's behind the window. No-op before 12. */
-    static void setBackgroundBlur(android.view.Window w, int radiusPx) {
-        try {
-            android.view.Window.class.getMethod("setBackgroundBlurRadius", int.class).invoke(w, radiusPx);
-        } catch (Exception ignored) {
-        }
-    }
-
     static boolean canDrawOverlays(Context c) {
         return Settings.canDrawOverlays(c);
     }

@@ -10,12 +10,12 @@
     <string name="bubble_toggle">Floating counter on or off</string>
     <string name="bubble_channel">Floating counter</string>
     <string name="bubble_on">Floating counter is on</string>
-    <string name="bubble_on_text">Tap the orange dot to count. Hold it to open the app.</string>
+    <string name="bubble_on_text">Tap the floating dot to count. Hold it to open the app.</string>
     <string name="turn_off">Turn off</string>
     <string name="bubble_enabled">Floating counter on</string>
     <string name="bubble_disabled">Floating counter off</string>
     <string name="offer_title">Floating counter</string>
-    <string name="offer_text">Keep counting when the app is minimized: an orange dot with the count stays on screen. Tap it to count, drag to move, hold to open the app.\n\nThis needs the \"Appear on top\" permission.</string>
+    <string name="offer_text">Keep counting when the app is minimized: a clear glass dot with the count stays on screen. Tap it to count, drag to move, hold to open the app.\n\nThis needs the \"Appear on top\" permission.</string>
     <string name="offer_allow">Turn on</string>
     <string name="not_now">Not now</string>
     <string name="allow_appear_on_top">Turn on \"Allow permission\" for Counter, then come back.</string>

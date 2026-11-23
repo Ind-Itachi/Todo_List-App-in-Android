@@ -26,8 +26,8 @@ import android.widget.Toast;
  *
  * Tap anywhere: +1. "−" button: −1. "Reset": back to 0 (asks first).
  * Volume up / down also count +1 / −1, so you can count without looking.
- * Orange dot (bottom centre): turns the floating counter bubble on/off. When on, an orange
- * dot showing the count floats over other apps while this app is minimized; tap it to count.
+ * Dot (bottom centre): turns the floating counter on/off. When on, a clear glass dot showing
+ * the count floats over other apps while this app is minimized; tap it to count.
  */
 public class MainActivity extends Activity implements Counter.Listener {
 
@@ -38,12 +38,13 @@ public class MainActivity extends Activity implements Counter.Listener {
     private TextView countView;
     private TextView hintView;
     private View dotToggle;
+    private int fg;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        int fg = getResources().getColor(R.color.fg, getTheme());
+        fg = getResources().getColor(R.color.fg, getTheme());
         int faint = withAlpha(fg, 0x66);
 
         if (!isNight()) {
@@ -85,7 +86,7 @@ public class MainActivity extends Activity implements Counter.Listener {
         hintLp.topMargin = dp(120);
         root.addView(hintView, hintLp);
 
-        // Bottom bar: "−" left, orange bubble toggle centre, "Reset" right.
+        // Bottom bar: "−" left, floating-counter toggle centre, "Reset" right.
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER_VERTICAL);
@@ -265,10 +266,10 @@ public class MainActivity extends Activity implements Counter.Listener {
         GradientDrawable d = new GradientDrawable();
         d.setShape(GradientDrawable.OVAL);
         if (bubbleActive()) {
-            d.setColor(BubbleService.ORANGE);
+            d.setColor(fg);
         } else {
             d.setColor(0x00000000);
-            d.setStroke(dp(2), BubbleService.ORANGE);
+            d.setStroke(dp(2), withAlpha(fg, 0x99));
         }
         dotToggle.setBackground(d);
     }
