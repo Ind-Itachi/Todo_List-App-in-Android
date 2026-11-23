@@ -23,7 +23,7 @@ It needs the **Appear on top** permission. On first launch the app offers to tur
 
 ## Glass clock widget
 
-A home-screen clock on a rounded liquid-glass panel: the time and full date over clear frosted glass, with your wallpaper showing through. The time updates itself every minute and follows the phone's 12/24-hour setting. Tap it to open Counter.
+A home-screen clock on a rounded liquid-glass panel: the time in ultra-thin numerals and the date in fine spaced capitals, over clear frosted glass, with your wallpaper showing through. The time updates itself every minute and follows the phone's 12/24-hour setting. Tap it to open Counter.
 
 **Live light (Android 12+):** as you tilt the phone, a soft reflection slides across the glass, a glow along the bottom edge slides the other way, and the time floats very slightly, so the panel catches the light like real glass. When you hold the phone still, the light drifts back to rest. It uses the phone's motion sensor only while the screen is on, and sends the widget tiny position-only updates (at most ~20 a second, and only while something is moving).
 

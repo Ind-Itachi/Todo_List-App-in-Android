@@ -52,8 +52,8 @@ public class ClockWidget extends AppWidgetProvider {
         if (w <= 0) w = 250;
         if (h <= 0) h = 110;
 
-        float time = clamp(Math.min(h * 0.42f, w * 0.23f), 20f, 84f);
-        float date = clamp(time * 0.25f, 10f, 18f);
+        float time = clamp(Math.min(h * 0.48f, w * 0.26f), 22f, 96f);
+        float date = clamp(time * 0.17f, 9f, 14f);
 
         RemoteViews rv = new RemoteViews(c.getPackageName(), R.layout.widget_clock);
         rv.setTextViewTextSize(R.id.widget_time, TypedValue.COMPLEX_UNIT_DIP, time);

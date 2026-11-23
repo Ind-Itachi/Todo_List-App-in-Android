@@ -59,14 +59,14 @@ final class GlassView extends View {
 
         smoke.setColor(0x33141419);
         rim.setStyle(Paint.Style.STROKE);
-        rim.setStrokeWidth(1.3f * dp);
+        rim.setStrokeWidth(0.9f * dp);
         ripple.setStyle(Paint.Style.STROKE);
 
         text.setColor(0xFFFFFFFF);
         text.setTextAlign(Paint.Align.CENTER);
-        text.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        text.setTypeface(Typeface.create("sans-serif-light", Typeface.NORMAL));
         text.setFontFeatureSettings("tnum");
-        text.setShadowLayer(5 * dp, 0, dp, 0x99000000);
+        text.setShadowLayer(3 * dp, 0, 0.5f * dp, 0x80000000);
     }
 
     void setLabel(String s) {
@@ -131,7 +131,7 @@ final class GlassView extends View {
         c.drawCircle(cx, cy, r - rim.getStrokeWidth() / 2f, rim);
 
         int n = label.length();
-        float sp = n <= 2 ? 22 : n == 3 ? 19 : n == 4 ? 16 : n == 5 ? 13 : 11;
+        float sp = n <= 2 ? 24 : n == 3 ? 21 : n == 4 ? 17 : n == 5 ? 14 : 12;
         text.setTextSize(sp * getResources().getDisplayMetrics().scaledDensity);
         Paint.FontMetrics fm = text.getFontMetrics();
         c.drawText(label, cx, cy - (fm.ascent + fm.descent) / 2f, text);

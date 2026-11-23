@@ -28,13 +28,13 @@
     <item>
         <shape android:shape="rectangle">
             <corners android:radius="@dimen/glass_radius" />
-            <stroke android:width="9dp" android:color="#0F000000" />
+            <stroke android:width="8dp" android:color="#0A000000" />
         </shape>
     </item>
     <item>
         <shape android:shape="rectangle">
             <corners android:radius="@dimen/glass_radius" />
-            <stroke android:width="4dp" android:color="#0F000000" />
+            <stroke android:width="3dp" android:color="#0A000000" />
         </shape>
     </item>
 </layer-list>

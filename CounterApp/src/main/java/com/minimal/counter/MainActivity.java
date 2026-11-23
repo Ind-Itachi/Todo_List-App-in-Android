@@ -67,7 +67,8 @@ public class MainActivity extends Activity implements Counter.Listener {
         // Big centered number.
         countView = new TextView(this);
         countView.setTextColor(fg);
-        countView.setTypeface(Typeface.create("sans-serif-light", Typeface.NORMAL));
+        countView.setTypeface(Typeface.create("sans-serif-thin", Typeface.NORMAL));
+        countView.setLetterSpacing(-0.02f);
         countView.setFontFeatureSettings("tnum"); // fixed-width digits so the number doesn't jiggle
         countView.setGravity(Gravity.CENTER);
         countView.setIncludeFontPadding(false);
@@ -79,7 +80,10 @@ public class MainActivity extends Activity implements Counter.Listener {
         hintView = new TextView(this);
         hintView.setText(R.string.hint);
         hintView.setTextColor(faint);
-        hintView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        hintView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+        hintView.setTypeface(Typeface.create("sans-serif-light", Typeface.NORMAL));
+        hintView.setLetterSpacing(0.22f);
+        hintView.setAllCaps(true);
         hintView.setGravity(Gravity.CENTER);
         FrameLayout.LayoutParams hintLp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
@@ -93,6 +97,7 @@ public class MainActivity extends Activity implements Counter.Listener {
         bar.setPadding(dp(12), 0, dp(12), dp(16));
 
         TextView minus = textButton(getString(R.string.minus), 34, fg);
+        minus.setTypeface(Typeface.create("sans-serif-thin", Typeface.NORMAL));
         minus.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -120,7 +125,10 @@ public class MainActivity extends Activity implements Counter.Listener {
 
         bar.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
 
-        TextView reset = textButton(getString(R.string.reset), 15, faint);
+        TextView reset = textButton(getString(R.string.reset), 11, faint);
+        reset.setTypeface(Typeface.create("sans-serif-light", Typeface.NORMAL));
+        reset.setLetterSpacing(0.22f);
+        reset.setAllCaps(true);
         reset.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
