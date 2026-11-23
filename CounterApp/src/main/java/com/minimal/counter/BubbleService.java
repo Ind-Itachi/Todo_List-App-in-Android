@@ -26,6 +26,8 @@ import android.widget.TextView;
 /**
  * Keeps an orange floating dot with the current count on screen while the app is minimized.
  * Tap the dot: +1. Drag it to move it (it snaps to the nearest side). Long-press: open the app.
+ * While dragging, a close target (×) appears at the bottom; drop the dot on it to hide it until
+ * the next time the app is opened and minimized.
  */
 public class BubbleService extends Service implements Counter.Listener {
 
@@ -43,6 +45,12 @@ public class BubbleService extends Service implements Counter.Listener {
     private TextView label;
     private WindowManager.LayoutParams lp;
     private boolean attached;
+
+    // Close target shown at the bottom while dragging. Its window is added *before* the bubble's
+    // so the bubble always draws on top of it.
+    private FrameLayout zone;
+    private TextView closeTarget;
+    private WindowManager.LayoutParams zoneLp;
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     static void start(Context c) {
@@ -137,7 +145,73 @@ public class BubbleService extends Service implements Counter.Listener {
         lp.x = Counter.bubbleX(this, m.widthPixels - lp.width);
         lp.y = Counter.bubbleY(this, m.heightPixels / 3);
 
+        buildZone();
         render(Counter.get(this));
+    }
+
+    private void buildZone() {
+        int target = dp(64);
+
+        closeTarget = new TextView(this);
+        closeTarget.setText("\u00D7");
+        closeTarget.setTextColor(0xFFFFFFFF);
+        closeTarget.setTextSize(TypedValue.COMPLEX_UNIT_SP, 30);
+        closeTarget.setGravity(Gravity.CENTER);
+        closeTarget.setIncludeFontPadding(false);
+        GradientDrawable ring = new GradientDrawable();
+        ring.setShape(GradientDrawable.OVAL);
+        ring.setColor(0x99000000);
+        ring.setStroke(dp(2), 0xCCFFFFFF);
+        closeTarget.setBackground(ring);
+
+        zone = new FrameLayout(this);
+        zone.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[] {0x00000000, 0x80000000}));
+        FrameLayout.LayoutParams tlp = new FrameLayout.LayoutParams(target, target,
+                Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM);
+        tlp.bottomMargin = dp(56);
+        zone.addView(closeTarget, tlp);
+        zone.setAlpha(0f);
+
+        zoneLp = new WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT, dp(220),
+                Compat.TYPE_APPLICATION_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                        | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                        | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+                PixelFormat.TRANSLUCENT);
+        zoneLp.gravity = Gravity.BOTTOM;
+    }
+
+    private void showZone(boolean show) {
+        zone.animate().cancel();
+        zone.animate().alpha(show ? 1f : 0f).setDuration(150).start();
+        if (!show) setOverTarget(false);
+    }
+
+    private boolean overTarget;
+
+    private void setOverTarget(boolean over) {
+        if (over == overTarget) return;
+        overTarget = over;
+        float s = over ? 1.25f : 1f;
+        closeTarget.animate().scaleX(s).scaleY(s).setDuration(120).start();
+        if (over) closeTarget.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY);
+    }
+
+    /** Hides the dot (drop on the close target). It comes back next time the app is minimized. */
+    private void dismiss() {
+        showZone(false);
+        label.animate().cancel();
+        label.animate().scaleX(0f).scaleY(0f).setDuration(160).withEndAction(new Runnable() {
+            @Override
+            public void run() {
+                detach();
+                label.setScaleX(1f);
+                label.setScaleY(1f);
+                stopSelf();
+            }
+        }).start();
     }
 
     private void render(int count) {
@@ -160,20 +234,28 @@ public class BubbleService extends Service implements Counter.Listener {
         render(Counter.get(this));
         clampToScreen();
         try {
+            zone.setAlpha(0f);
+            wm.addView(zone, zoneLp);
             wm.addView(bubble, lp);
             attached = true;
         } catch (RuntimeException e) {
             attached = false; // permission was revoked
+            safeRemove(zone);
         }
     }
 
     private void detach() {
         if (!attached) return;
+        safeRemove(bubble);
+        safeRemove(zone);
+        attached = false;
+    }
+
+    private void safeRemove(View v) {
         try {
-            wm.removeView(bubble);
+            if (v.isAttachedToWindow()) wm.removeView(v);
         } catch (RuntimeException ignored) {
         }
-        attached = false;
     }
 
     private void clampToScreen() {
@@ -231,6 +313,8 @@ public class BubbleService extends Service implements Counter.Listener {
         private float downX, downY;
         private int startX, startY;
         private boolean dragging, longPressed;
+        private final int[] loc = new int[2];
+        private int offX, offY; // bubble window position -> screen position
         private final Runnable longPress = new Runnable() {
             @Override
             public void run() {
@@ -257,20 +341,50 @@ public class BubbleService extends Service implements Counter.Listener {
                     if (!dragging && !longPressed && (Math.abs(dx) > slop || Math.abs(dy) > slop)) {
                         dragging = true;
                         handler.removeCallbacks(longPress);
+                        bubble.getLocationOnScreen(loc);
+                        offX = loc[0] - lp.x;
+                        offY = loc[1] - lp.y;
+                        showZone(true);
                     }
-                    if (dragging) moveTo(startX + Math.round(dx), startY + Math.round(dy));
+                    if (dragging) dragTo(e.getRawX(), e.getRawY(),
+                            startX + Math.round(dx), startY + Math.round(dy));
                     return true;
                 case MotionEvent.ACTION_UP:
                     handler.removeCallbacks(longPress);
-                    if (dragging) snapToEdge();
+                    if (dragging) endDrag(true);
                     else if (!longPressed) tap();
                     return true;
                 case MotionEvent.ACTION_CANCEL:
                     handler.removeCallbacks(longPress);
-                    if (dragging) snapToEdge();
+                    if (dragging) endDrag(false);
                     return true;
                 default:
                     return false;
+            }
+        }
+
+        /** Follows the finger, but sticks to the close target when the finger is near it. */
+        private void dragTo(float fingerX, float fingerY, int x, int y) {
+            if (closeTarget.getWidth() > 0) {
+                closeTarget.getLocationOnScreen(loc);
+                float cx = loc[0] + closeTarget.getWidth() / 2f;
+                float cy = loc[1] + closeTarget.getHeight() / 2f;
+                boolean near = Math.hypot(fingerX - cx, fingerY - cy) < dp(80);
+                setOverTarget(near);
+                if (near) {
+                    x = Math.round(cx - offX - lp.width / 2f);
+                    y = Math.round(cy - offY - lp.height / 2f);
+                }
+            }
+            moveTo(x, y);
+        }
+
+        private void endDrag(boolean released) {
+            if (released && overTarget) {
+                dismiss();
+            } else {
+                showZone(false);
+                snapToEdge();
             }
         }
     }

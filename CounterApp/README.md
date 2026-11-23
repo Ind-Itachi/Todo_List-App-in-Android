@@ -16,6 +16,7 @@ When you leave the app, an orange dot showing the count floats on top of whateve
 - **Tap the dot** → +1
 - **Drag** it to move it; it snaps to the nearest side of the screen
 - **Hold** it → opens the app (for −1 and Reset)
+- **Drag it to the × at the bottom** of the screen (it appears while you drag) → hides the dot. It comes back the next time you open and minimize the app; to turn it off for good, use the orange dot in the app.
 - It hides while the app itself is open, and comes back when you minimize it.
 
 It needs the **Appear on top** permission. On first launch the app offers to turn it on and opens the setting: switch on *Allow permission* for Counter and go back. While the dot is on, Android shows a "Floating counter is on" notification; its **Turn off** button (or the orange dot in the app) switches the dot off.
