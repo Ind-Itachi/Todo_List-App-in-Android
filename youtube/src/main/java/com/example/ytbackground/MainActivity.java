@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -408,6 +409,13 @@ public class MainActivity extends AppCompatActivity implements PlayerController 
             runOnUiThread(() -> PlaybackService.onPlayerState(
                     getApplicationContext(), playing, pos, dur,
                     title == null ? "" : title, videoId == null ? "" : videoId));
+        }
+
+        /** False while a phone/VoIP call is ringing or active, so we never resume over a call. */
+        @JavascriptInterface
+        public boolean canAutoResume() {
+            AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
+            return am == null || am.getMode() == AudioManager.MODE_NORMAL;
         }
     }
 }

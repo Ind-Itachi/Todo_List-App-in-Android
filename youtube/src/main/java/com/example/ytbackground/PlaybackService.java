@@ -12,7 +12,6 @@ import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.media.AudioManager;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -30,9 +29,6 @@ import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.ServiceCompat;
 import androidx.core.content.ContextCompat;
-import androidx.media.AudioAttributesCompat;
-import androidx.media.AudioFocusRequestCompat;
-import androidx.media.AudioManagerCompat;
 
 import java.io.InputStream;
 import java.lang.ref.WeakReference;
@@ -48,6 +44,10 @@ import java.util.concurrent.Executors;
  * The video itself plays inside MainActivity's WebView; this service only
  * keeps the process, CPU and Wi-Fi awake and forwards control buttons to the
  * page through {@link PlayerController}.
+ *
+ * Note: this service must NOT request audio focus. The WebView takes audio
+ * focus itself when a video plays; requesting it here would make the WebView
+ * lose focus and pause the video immediately.
  */
 public class PlaybackService extends Service {
 
@@ -114,10 +114,6 @@ public class PlaybackService extends Service {
     private MediaSessionCompat session;
     private PowerManager.WakeLock wakeLock;
     private WifiManager.WifiLock wifiLock;
-    private AudioManager audioManager;
-    private AudioFocusRequestCompat focusRequest;
-    private boolean hasAudioFocus;
-    private boolean resumeOnFocusGain;
     private boolean isForeground;
     @Nullable private Bitmap artwork;
     private String artworkFor = "";
@@ -161,16 +157,6 @@ public class PlaybackService extends Service {
         //noinspection deprecation
         wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "YTBackground:playback");
         wifiLock.setReferenceCounted(false);
-
-        audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
-        focusRequest = new AudioFocusRequestCompat.Builder(AudioManagerCompat.AUDIOFOCUS_GAIN)
-                .setAudioAttributes(new AudioAttributesCompat.Builder()
-                        .setUsage(AudioAttributesCompat.USAGE_MEDIA)
-                        .setContentType(AudioAttributesCompat.CONTENT_TYPE_MOVIE)
-                        .build())
-                .setWillPauseWhenDucked(false)
-                .setOnAudioFocusChangeListener(this::onAudioFocusChange, mainHandler)
-                .build();
     }
 
     @Override
@@ -199,7 +185,6 @@ public class PlaybackService extends Service {
     public void onDestroy() {
         instance = null;
         releaseLocks();
-        abandonFocus();
         session.setActive(false);
         session.release();
         artworkExecutor.shutdownNow();
@@ -249,39 +234,6 @@ public class PlaybackService extends Service {
         stopSelf();
         instance = null;
         releaseLocks();
-        abandonFocus();
-    }
-
-    private void onAudioFocusChange(int change) {
-        PlayerController c = controllerRef.get();
-        switch (change) {
-            case AudioManager.AUDIOFOCUS_LOSS:
-                // Another app started playing audio.
-                hasAudioFocus = false;
-                resumeOnFocusGain = false;
-                if (c != null && playing) c.pause();
-                break;
-            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
-            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
-                // Phone call, navigation prompt, etc.
-                resumeOnFocusGain = playing;
-                if (c != null && playing) c.pause();
-                break;
-            case AudioManager.AUDIOFOCUS_GAIN:
-                hasAudioFocus = true;
-                if (resumeOnFocusGain && c != null) c.play();
-                resumeOnFocusGain = false;
-                break;
-            default:
-                break;
-        }
-    }
-
-    private void abandonFocus() {
-        if (hasAudioFocus) {
-            AudioManagerCompat.abandonAudioFocusRequest(audioManager, focusRequest);
-            hasAudioFocus = false;
-        }
     }
 
     private void releaseLocks() {
@@ -296,10 +248,6 @@ public class PlaybackService extends Service {
         if (playing) {
             if (!wakeLock.isHeld()) wakeLock.acquire();
             if (!wifiLock.isHeld()) wifiLock.acquire();
-            if (!hasAudioFocus) {
-                hasAudioFocus = AudioManagerCompat.requestAudioFocus(audioManager, focusRequest)
-                        == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
-            }
         } else {
             releaseLocks();
         }

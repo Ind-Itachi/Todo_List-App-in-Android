@@ -6,14 +6,16 @@
  * 2. Watches the <video> element and reports play / pause / title to the app
  *    (YTBridge), which drives the media notification and lock-screen controls.
  * 3. Exposes window.__ytbg so the app can play / pause / seek from the
- *    notification, and auto-resumes playback if something pauses the video
- *    while the app is in the background.
+ *    notification. If the video gets paused right as the app goes to the
+ *    background, it is resumed (but never during a phone call, and never
+ *    later on, so pauses caused by calls or other music apps are respected).
  */
 (function () {
   if (window.__ytbg) return;
 
   var st = (window.__ytbg = {
     background: false,  // app is minimised / screen locked
+    bgSince: 0,         // when the app went to the background
     wantPlay: false,    // the user wants the video to be playing
     resumes: []         // timestamps of automatic resumes (loop guard)
   });
@@ -91,6 +93,9 @@
     if (st.resumes.length >= 3) { st.wantPlay = false; report(v); return; } // give up, avoid loops
     st.resumes.push(now);
     setTimeout(function () {
+      var allowed = true;
+      try { allowed = YTBridge.canAutoResume(); } catch (e) {}
+      if (!allowed) { st.wantPlay = false; report(v); return; }
       if (v.paused && st.wantPlay) {
         var p = v.play();
         if (p && p.catch) p.catch(function () {});
@@ -108,8 +113,9 @@
     });
     v.addEventListener('playing', function () { report(v); });
     v.addEventListener('pause', function () {
-      if (st.background && st.wantPlay && !v.ended && !isPreview(v)) {
-        // Paused by the system / page because we went to the background.
+      if (st.background && st.wantPlay && !v.ended && !isPreview(v) &&
+          Date.now() - st.bgSince < 3000) {
+        // Paused by the system / page just because we went to the background.
         tryResume(v);
         return;
       }
@@ -131,7 +137,11 @@
   }, 1000);
 
   // ---- 3. Controls used by the app --------------------------------------
-  st.setBackground = function (b) { st.background = !!b; };
+  st.setBackground = function (b) {
+    b = !!b;
+    if (b && !st.background) st.bgSince = Date.now();
+    st.background = b;
+  };
   st.play = function () {
     var v = mainVideo();
     if (!v) return;
