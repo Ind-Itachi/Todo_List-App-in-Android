@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Aahnik</string>
+    <string name="widget_description">Today\'s aahnik. Tap one to mark it done.</string>
 </resources>

@@ -20,6 +20,12 @@ An Android app for tracking your daily aahnik and seeing *when* you complete the
 - Per-aahnik table: average time and the number of days completed.
 - Tap any dot or bar for details.
 
+**Home-screen widget**
+- Long-press your home screen → Widgets → **Aahnik**, and place it (resizable; 3×2 by default).
+- It shows today's list and a done count. Tap an unfinished aahnik to mark it done (the current time is recorded).
+- Tap a finished aahnik or the header to open the app.
+- It updates whenever you change something in the app, and switches to the new day at 3 AM.
+
 ## Look & feel
 
 The "liquid glass" UI is built with Jetpack Compose:
@@ -51,3 +57,4 @@ Unit tests for the analysis logic: `./gradlew :app:testDebugUnitTest`.
 | `ui/home/HomeScreen.kt` | Today tab |
 | `ui/analysis/` | Analysis tab and the Canvas charts |
 | `ui/glass/` | Glass material, liquid press, segmented control, liquid check, progress orb |
+| `widget/AahnikWidget.kt` | Home-screen widget (Jetpack Glance) |

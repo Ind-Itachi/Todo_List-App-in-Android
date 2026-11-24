@@ -124,13 +124,38 @@ class AahnikDatabase(context: Context) :
 
     /** Records (or replaces) the completion of [aahnikId] for the aahnik day that [at] falls in. */
     fun markComplete(aahnikId: Long, at: LocalDateTime) {
-        val values = ContentValues().apply {
-            put("aahnik_id", aahnikId)
-            put("day", DayCycle.dayOf(at).toString())
-            put("completed_at", at.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
-            put("minute_of_day", at.hour * 60 + at.minute)
+        writableDatabase.insertWithOnConflict("completion", null, completionValues(aahnikId, at), SQLiteDatabase.CONFLICT_REPLACE)
+    }
+
+    /** Like [markComplete], but keeps an existing time for that day (used by the widget so a double tap can't overwrite it). */
+    fun markCompleteIfAbsent(aahnikId: Long, at: LocalDateTime) {
+        writableDatabase.insertWithOnConflict("completion", null, completionValues(aahnikId, at), SQLiteDatabase.CONFLICT_IGNORE)
+    }
+
+    private fun completionValues(aahnikId: Long, at: LocalDateTime) = ContentValues().apply {
+        put("aahnik_id", aahnikId)
+        put("day", DayCycle.dayOf(at).toString())
+        put("completed_at", at.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
+        put("minute_of_day", at.hour * 60 + at.minute)
+    }
+
+    fun getCompletionsForDay(day: LocalDate): List<Completion> {
+        val result = mutableListOf<Completion>()
+        readableDatabase.rawQuery(
+            "SELECT id, aahnik_id, day, completed_at, minute_of_day FROM completion WHERE day = ?",
+            arrayOf(day.toString())
+        ).use { c ->
+            while (c.moveToNext()) {
+                result += Completion(
+                    id = c.getLong(0),
+                    aahnikId = c.getLong(1),
+                    day = LocalDate.parse(c.getString(2)),
+                    completedAt = c.getLong(3),
+                    minuteOfDay = c.getInt(4),
+                )
+            }
         }
-        writableDatabase.insertWithOnConflict("completion", null, values, SQLiteDatabase.CONFLICT_REPLACE)
+        return result
     }
 
     fun unmark(aahnikId: Long, day: LocalDate) {
@@ -144,5 +169,14 @@ class AahnikDatabase(context: Context) :
     companion object {
         private const val DB_NAME = "aahnik.db"
         private const val DB_VERSION = 2
+
+        @Volatile
+        private var instance: AahnikDatabase? = null
+
+        /** One shared connection for the app and the home-screen widget. */
+        fun get(context: Context): AahnikDatabase =
+            instance ?: synchronized(this) {
+                instance ?: AahnikDatabase(context.applicationContext).also { instance = it }
+            }
     }
 }

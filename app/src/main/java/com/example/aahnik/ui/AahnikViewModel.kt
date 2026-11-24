@@ -7,6 +7,7 @@ import com.example.aahnik.data.Aahnik
 import com.example.aahnik.data.AahnikDatabase
 import com.example.aahnik.data.Completion
 import com.example.aahnik.data.DayCycle
+import com.example.aahnik.widget.AahnikWidget
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,7 +36,7 @@ data class AppState(
 
 class AahnikViewModel(app: Application) : AndroidViewModel(app) {
 
-    private val db = AahnikDatabase(app)
+    private val db = AahnikDatabase.get(app)
     private val writeLock = Mutex()
 
     private val _state = MutableStateFlow(AppState())
@@ -88,6 +89,7 @@ class AahnikViewModel(app: Application) : AndroidViewModel(app) {
                 withContext(Dispatchers.IO) { block() }
             }
             reload()
+            AahnikWidget.refreshAll(getApplication())
         }
     }
 
@@ -98,9 +100,5 @@ class AahnikViewModel(app: Application) : AndroidViewModel(app) {
         _state.update {
             it.copy(loaded = true, today = DayCycle.today(), aahniks = aahniks, completions = completions)
         }
-    }
-
-    override fun onCleared() {
-        db.close()
     }
 }
