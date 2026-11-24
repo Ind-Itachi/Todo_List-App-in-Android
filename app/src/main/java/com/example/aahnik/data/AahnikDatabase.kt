@@ -49,7 +49,13 @@ class AahnikDatabase(context: Context) :
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Version 1 is the first schema; add migrations here when the schema changes.
+        if (oldVersion < 2) {
+            // v2: the aahnik day runs 3 AM–3 AM. Completions made between midnight and 3 AM
+            // belong to the previous day.
+            db.execSQL(
+                "UPDATE OR IGNORE completion SET day = date(day, '-1 day') WHERE minute_of_day < ${DayCycle.START_MINUTE}"
+            )
+        }
     }
 
     fun getAahniks(): List<Aahnik> {
@@ -116,11 +122,11 @@ class AahnikDatabase(context: Context) :
         return result
     }
 
-    /** Records (or replaces) today's completion of [aahnikId] at [at]. */
+    /** Records (or replaces) the completion of [aahnikId] for the aahnik day that [at] falls in. */
     fun markComplete(aahnikId: Long, at: LocalDateTime) {
         val values = ContentValues().apply {
             put("aahnik_id", aahnikId)
-            put("day", at.toLocalDate().toString())
+            put("day", DayCycle.dayOf(at).toString())
             put("completed_at", at.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
             put("minute_of_day", at.hour * 60 + at.minute)
         }
@@ -137,6 +143,6 @@ class AahnikDatabase(context: Context) :
 
     companion object {
         private const val DB_NAME = "aahnik.db"
-        private const val DB_VERSION = 1
+        private const val DB_VERSION = 2
     }
 }

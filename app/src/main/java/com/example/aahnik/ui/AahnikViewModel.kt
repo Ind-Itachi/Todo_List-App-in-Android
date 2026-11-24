@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.aahnik.data.Aahnik
 import com.example.aahnik.data.AahnikDatabase
 import com.example.aahnik.data.Completion
+import com.example.aahnik.data.DayCycle
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,13 +17,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 
 data class AppState(
     val loaded: Boolean = false,
-    val today: LocalDate = LocalDate.now(),
+    /** The current aahnik day (3 AM–3 AM). */
+    val today: LocalDate = DayCycle.today(),
     val aahniks: List<Aahnik> = emptyList(),
     val completions: List<Completion> = emptyList(),
 ) {
@@ -39,9 +43,17 @@ class AahnikViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         refresh()
+        // Roll over to the new aahnik day at 3 AM even if the app stays open.
+        viewModelScope.launch {
+            while (true) {
+                val now = LocalDateTime.now()
+                delay(Duration.between(now, DayCycle.nextStart(now)).toMillis() + 1_000)
+                reload()
+            }
+        }
     }
 
-    /** Reloads everything from the database. Also rolls "today" over after midnight. */
+    /** Reloads everything from the database. Also rolls "today" over at 3 AM. */
     fun refresh() {
         viewModelScope.launch { reload() }
     }
@@ -51,15 +63,15 @@ class AahnikViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun markDoneAt(aahnik: Aahnik, time: LocalTime) = write {
-        db.markComplete(aahnik.id, LocalDate.now().atTime(time))
+        db.markComplete(aahnik.id, DayCycle.dateTimeFor(DayCycle.today(), time))
     }
 
     fun undoToday(aahnik: Aahnik) = write {
-        db.unmark(aahnik.id, LocalDate.now())
+        db.unmark(aahnik.id, DayCycle.today())
     }
 
     fun addAahnik(name: String, icon: String) = write {
-        db.addAahnik(name.trim(), icon, LocalDate.now())
+        db.addAahnik(name.trim(), icon, DayCycle.today())
     }
 
     fun updateAahnik(aahnik: Aahnik, name: String, icon: String) = write {
@@ -84,7 +96,7 @@ class AahnikViewModel(app: Application) : AndroidViewModel(app) {
             db.getAahniks() to db.getAllCompletions()
         }
         _state.update {
-            it.copy(loaded = true, today = LocalDate.now(), aahniks = aahniks, completions = completions)
+            it.copy(loaded = true, today = DayCycle.today(), aahniks = aahniks, completions = completions)
         }
     }
 

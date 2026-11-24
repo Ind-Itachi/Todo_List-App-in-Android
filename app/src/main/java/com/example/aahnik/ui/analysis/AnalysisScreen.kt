@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.sp
 import com.example.aahnik.data.AahnikStats
 import com.example.aahnik.data.AnalysisRange
 import com.example.aahnik.data.AnalysisResult
+import com.example.aahnik.data.DayCycle
 import com.example.aahnik.data.TimeText
 import com.example.aahnik.ui.AppState
 import com.example.aahnik.ui.glass.GlassCard
@@ -177,7 +178,8 @@ fun AnalysisScreen(state: AppState, is24Hour: Boolean, modifier: Modifier = Modi
             ChartCard(
                 title = "What time you complete",
                 subtitle = peak?.let {
-                    "Most often between ${TimeText.minute(it * 60, is24Hour)} and ${TimeText.minute((it + 1) * 60, is24Hour)}. Tap a bar for details."
+                    val h = it + DayCycle.START_HOUR
+                    "Most often between ${TimeText.minute(h * 60, is24Hour)} and ${TimeText.minute((h + 1) * 60, is24Hour)}. Tap a bar for details."
                 } ?: "",
             ) {
                 HourHistogram(result.hourCounts, is24Hour)

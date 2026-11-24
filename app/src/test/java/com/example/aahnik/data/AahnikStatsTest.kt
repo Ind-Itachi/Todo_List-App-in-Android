@@ -5,6 +5,8 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 
 class AahnikStatsTest {
 
@@ -22,8 +24,9 @@ class AahnikStatsTest {
         assertEquals(390, r.averageMinute)
         assertEquals(360, r.earliestMinute)
         assertEquals(420, r.latestMinute)
-        assertEquals(2, r.hourCounts[6])
-        assertEquals(1, r.hourCounts[7])
+        // Index 0 is 3–4 AM, so 6 AM is index 3 and 7 AM is index 4.
+        assertEquals(2, r.hourCounts[3])
+        assertEquals(1, r.hourCounts[4])
         assertEquals(3, r.points.size)
     }
 
@@ -95,5 +98,38 @@ class AahnikStatsTest {
         assertEquals("12:00 AM", TimeText.minute(0, false))
         assertEquals("18:30", TimeText.minute(1110, true))
         assertEquals("1 h 5 min", TimeText.duration(65))
+    }
+
+    @Test
+    fun dayRunsFromThreeAmToThreeAm() {
+        assertEquals(LocalDate.of(2026, 11, 23), DayCycle.dayOf(LocalDateTime.of(2026, 11, 24, 1, 30)))
+        assertEquals(LocalDate.of(2026, 11, 23), DayCycle.dayOf(LocalDateTime.of(2026, 11, 24, 2, 59)))
+        assertEquals(LocalDate.of(2026, 11, 24), DayCycle.dayOf(LocalDateTime.of(2026, 11, 24, 3, 0)))
+        assertEquals(LocalDate.of(2026, 11, 24), DayCycle.dayOf(LocalDateTime.of(2026, 11, 24, 23, 59)))
+        assertEquals(
+            LocalDateTime.of(2026, 11, 25, 1, 0),
+            DayCycle.dateTimeFor(LocalDate.of(2026, 11, 24), LocalTime.of(1, 0)),
+        )
+        assertEquals(
+            LocalDateTime.of(2026, 11, 25, 3, 0),
+            DayCycle.nextStart(LocalDateTime.of(2026, 11, 24, 3, 0)),
+        )
+        assertEquals(
+            LocalDateTime.of(2026, 11, 24, 3, 0),
+            DayCycle.nextStart(LocalDateTime.of(2026, 11, 24, 2, 0)),
+        )
+    }
+
+    @Test
+    fun afterMidnightCountsAsLateNotEarly() {
+        // 11 PM one night and 1 AM the next: the average is midnight, not noon.
+        val data = listOf(done(mala, 1, 23), done(mala, 0, 1))
+        val r = AahnikStats.analyze(listOf(mala), data, null, AnalysisRange.WEEK, today)
+        assertEquals("12:00 AM", TimeText.minute(r.averageMinute!!, false))
+        assertEquals("11:00 PM", TimeText.minute(r.earliestMinute!!, false))
+        assertEquals("1:00 AM", TimeText.minute(r.latestMinute!!, false))
+        // 1 AM is the 23rd hour slot of the aahnik day (index 22).
+        assertEquals(1, r.hourCounts[22])
+        assertEquals(1, r.hourCounts[20])
     }
 }

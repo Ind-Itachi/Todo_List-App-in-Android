@@ -36,6 +36,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.aahnik.data.DayCycle
 import com.example.aahnik.data.TimeText
 import com.example.aahnik.data.TrendPoint
 import com.example.aahnik.ui.theme.AahnikColors
@@ -78,12 +79,15 @@ private class TrendFrame(
 }
 
 internal fun minuteRange(points: List<TrendPoint>): Pair<Int, Int> {
+    // Minutes are on the 3 AM–3 AM timeline (180..1620), so a 1 AM completion sits below 11 PM.
+    val dayStart = DayCycle.START_MINUTE
+    val dayEnd = DayCycle.START_MINUTE + 1440
     if (points.isEmpty()) return 300 to 540
-    var lo = (floor((points.minOf { it.minuteOfDay } - 15) / 60.0) * 60).toInt().coerceAtLeast(0)
-    var hi = (ceil((points.maxOf { it.minuteOfDay } + 15) / 60.0) * 60).toInt().coerceAtMost(1440)
+    var lo = (floor((points.minOf { it.cycleMinute } - 15) / 60.0) * 60).toInt().coerceAtLeast(dayStart)
+    var hi = (ceil((points.maxOf { it.cycleMinute } + 15) / 60.0) * 60).toInt().coerceAtMost(dayEnd)
     if (hi - lo < 120) {
-        hi = (lo + 120).coerceAtMost(1440)
-        lo = (hi - 120).coerceAtLeast(0)
+        hi = (lo + 120).coerceAtMost(dayEnd)
+        lo = (hi - 120).coerceAtLeast(dayStart)
     }
     return lo to hi
 }
@@ -139,10 +143,10 @@ fun TrendChart(
                 detectTapGestures { tap ->
                     val frame = frameFor(Size(size.width.toFloat(), size.height.toFloat()), density)
                     val nearest = points.minByOrNull {
-                        hypot(frame.x(it.day) - tap.x, frame.y(it.minuteOfDay.toFloat()) - tap.y)
+                        hypot(frame.x(it.day) - tap.x, frame.y(it.cycleMinute.toFloat()) - tap.y)
                     }
                     selected = nearest?.takeIf {
-                        hypot(frame.x(it.day) - tap.x, frame.y(it.minuteOfDay.toFloat()) - tap.y) < 32.dp.toPx()
+                        hypot(frame.x(it.day) - tap.x, frame.y(it.cycleMinute.toFloat()) - tap.y) < 32.dp.toPx()
                     }?.takeIf { it != selected }
                 }
             }
@@ -193,7 +197,7 @@ fun TrendChart(
                 if (list.size > 1) {
                     val path = Path()
                     list.forEachIndexed { i, p ->
-                        val o = Offset(frame.x(p.day), frame.y(p.minuteOfDay.toFloat()))
+                        val o = Offset(frame.x(p.day), frame.y(p.cycleMinute.toFloat()))
                         if (i == 0) path.moveTo(o.x, o.y) else path.lineTo(o.x, o.y)
                     }
                     drawPath(
@@ -203,7 +207,7 @@ fun TrendChart(
                     )
                 }
                 list.forEach { p ->
-                    val o = Offset(frame.x(p.day), frame.y(p.minuteOfDay.toFloat()))
+                    val o = Offset(frame.x(p.day), frame.y(p.cycleMinute.toFloat()))
                     drawCircle(GlassSurface, radius = radius + 2.dp.toPx(), center = o)
                     drawCircle(color, radius = radius, center = o)
                 }
@@ -211,14 +215,14 @@ fun TrendChart(
         }
 
         selected?.let { p ->
-            val o = Offset(frame.x(p.day), frame.y(p.minuteOfDay.toFloat()))
+            val o = Offset(frame.x(p.day), frame.y(p.cycleMinute.toFloat()))
             val info = series[p.aahnikId]
             drawCircle(Color.White, radius = radius + 3.dp.toPx(), center = o, style = Stroke(2.dp.toPx()))
             val text = buildString {
                 if (series.size > 1 && info != null) append("${info.icon} ${info.name}\n")
                 append(p.day.format(tooltipDay))
                 append(" · ")
-                append(TimeText.minute(p.minuteOfDay, is24Hour))
+                append(TimeText.minute(p.cycleMinute, is24Hour))
             }
             drawTooltip(measurer, text, o)
         }
@@ -231,7 +235,7 @@ private fun DrawScope.drawAverageAndTrend(
     measurer: TextMeasurer,
     reveal: Float,
 ) {
-    val avg = points.map { it.minuteOfDay }.average().toFloat()
+    val avg = points.map { it.cycleMinute }.average().toFloat()
     val yAvg = frame.y(avg)
     clipRect(right = reveal) {
         drawLine(
@@ -248,7 +252,7 @@ private fun DrawScope.drawAverageAndTrend(
     // Least-squares trend line across the range.
     if (points.size >= 3 && points.map { it.day }.distinct().size >= 2) {
         val xs = points.map { it.day.toEpochDay().toDouble() }
-        val ys = points.map { it.minuteOfDay.toDouble() }
+        val ys = points.map { it.cycleMinute.toDouble() }
         val mx = xs.average()
         val my = ys.average()
         val sxx = xs.sumOf { (it - mx) * (it - mx) }
@@ -298,7 +302,10 @@ private fun DrawScope.drawTooltip(measurer: TextMeasurer, text: String, anchor: 
     drawText(layout, topLeft = Offset(x + padH, y + padV))
 }
 
-/** Hour-of-day histogram: how often you complete in each hour. */
+/**
+ * Hour-of-day histogram: how often you complete in each hour.
+ * [hourCounts] is indexed by hour of the aahnik day (0 = 3–4 AM … 23 = 2–3 AM).
+ */
 @Composable
 fun HourHistogram(
     hourCounts: List<Int>,
@@ -403,7 +410,7 @@ fun HourHistogram(
                 }
             }
             if (i % labelEvery == 0) {
-                val label = measurer.measure(TimeText.hourShort(hour, is24Hour), labelStyle)
+                val label = measurer.measure(TimeText.hourShort(hour + DayCycle.START_HOUR, is24Hour), labelStyle)
                 drawText(label, topLeft = Offset(x + w / 2 - label.size.width / 2f, size.height - label.size.height))
             }
         }
@@ -412,7 +419,8 @@ fun HourHistogram(
             val i = hours.indexOf(hour)
             val x = left + slot * i + slot / 2
             val count = hourCounts[hour]
-            val text = "${TimeText.minute(hour * 60, is24Hour)} – ${TimeText.minute((hour + 1) * 60, is24Hour)}\n" +
+            val clockHour = hour + DayCycle.START_HOUR
+            val text = "${TimeText.minute(clockHour * 60, is24Hour)} – ${TimeText.minute((clockHour + 1) * 60, is24Hour)}\n" +
                 "$count completion${if (count == 1) "" else "s"}"
             drawTooltip(measurer, text, Offset(x, top + 8.dp.toPx()))
         }

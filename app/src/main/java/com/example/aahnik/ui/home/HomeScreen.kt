@@ -74,7 +74,7 @@ fun HomeScreen(
         state.completions
             .filter { it.day.isAfter(since) && it.day.isBefore(state.today) }
             .groupBy { it.aahnikId }
-            .mapValues { (_, list) -> list.map { it.minuteOfDay }.average().roundToInt() }
+            .mapValues { (_, list) -> list.map { it.cycleMinute }.average().roundToInt() }
     }
     val doneCount = state.aahniks.count { it.id in done }
 
@@ -133,7 +133,7 @@ private fun StatusStrip(state: AppState, done: Map<Long, Completion>, doneCount:
         !state.loaded -> ""
         total == 0 -> "Add the aahnik you follow each day with the + button. Tap one to mark it complete — the time is recorded for your analysis."
         doneCount == total -> {
-            val last = done.values.maxOf { it.minuteOfDay }
+            val last = done.values.maxOf { it.cycleMinute }
             "All complete — last one at ${TimeText.minute(last, is24Hour)}. 🙏"
         }
         doneCount == 0 -> "Tap an aahnik when you complete it. Long-press to edit or set a different time."

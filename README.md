@@ -4,6 +4,8 @@ An Android app for tracking your daily aahnik and seeing *when* you complete the
 
 ## What it does
 
+**Your day runs from 3 AM to 3 AM.** Anything completed between midnight and 3 AM counts toward the previous day. The charts place those times after 11 PM, so late-night completions show as late rather than early.
+
 **Today tab**
 - Add each aahnik you follow (name + icon) with the **+** button. They are saved in a local SQLite database.
 - Tap an aahnik when you finish it: it fills with liquid, and the exact time is recorded.

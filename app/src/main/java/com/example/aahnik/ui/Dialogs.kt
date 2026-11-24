@@ -48,11 +48,13 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.aahnik.data.Aahnik
 import com.example.aahnik.data.Completion
+import com.example.aahnik.data.DayCycle
 import com.example.aahnik.data.TimeText
 import com.example.aahnik.ui.glass.GlassButton
 import com.example.aahnik.ui.glass.GlassCard
 import com.example.aahnik.ui.glass.glass
 import com.example.aahnik.ui.theme.AahnikColors
+import java.time.LocalDateTime
 import java.time.LocalTime
 
 val AahnikIcons = listOf("🪔", "🙏", "📿", "📖", "🛕", "🌅", "🌙", "🕉️", "🌸", "🔔", "🎵", "🧘", "💧", "🍃", "⭐", "🏠")
@@ -225,13 +227,17 @@ fun CompletionTimeDialog(
     onConfirm: (LocalTime) -> Unit,
 ) {
     val state = rememberTimePickerState(initialHour = initial.hour, initialMinute = initial.minute, is24Hour = is24Hour)
-    val now = LocalTime.now()
     val picked = LocalTime.of(state.hour, state.minute)
-    val inFuture = picked.isAfter(now)
+    // The aahnik day runs 3 AM–3 AM, so 1 AM means the early hours after today's date.
+    val inFuture = DayCycle.dateTimeFor(DayCycle.today(), picked).isAfter(LocalDateTime.now())
 
     GlassDialog(onDismiss) {
         Text("${aahnik.icon} ${aahnik.name}", style = MaterialTheme.typography.headlineSmall, color = AahnikColors.TextPrimary)
-        Text("When did you complete it today?", color = AahnikColors.TextMuted, fontSize = 14.sp)
+        Text(
+            "When did you complete it today? (Your day runs 3 AM to 3 AM.)",
+            color = AahnikColors.TextMuted,
+            fontSize = 14.sp,
+        )
         Spacer(Modifier.height(16.dp))
         TimePicker(
             state = state,

@@ -11,12 +11,15 @@ data class Aahnik(
     val createdOn: LocalDate,
 )
 
-/** A single "done" mark: which aahnik, which day, and the time of day it was completed. */
+/** A single "done" mark: which aahnik, which aahnik day (3 AM–3 AM), and the time it was completed. */
 data class Completion(
     val id: Long,
     val aahnikId: Long,
     val day: LocalDate,
     val completedAt: Long,
-    /** Minutes since local midnight (0..1439) when the aahnik was marked complete. */
+    /** Clock time (minutes since midnight, 0..1439) when the aahnik was marked complete. */
     val minuteOfDay: Int,
-)
+) {
+    /** Time on the 3 AM–3 AM aahnik-day timeline (180..1619), so 1 AM comes after 11 PM. */
+    val cycleMinute: Int get() = DayCycle.cycleMinute(minuteOfDay)
+}

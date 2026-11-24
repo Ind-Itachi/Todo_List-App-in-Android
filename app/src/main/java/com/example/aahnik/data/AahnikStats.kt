@@ -11,7 +11,8 @@ enum class AnalysisRange(val label: String, val days: Int?) {
     ALL("All", null),
 }
 
-data class TrendPoint(val aahnikId: Long, val day: LocalDate, val minuteOfDay: Int)
+/** [cycleMinute] is on the 3 AM–3 AM timeline (180..1619); display it with [TimeText.minute]. */
+data class TrendPoint(val aahnikId: Long, val day: LocalDate, val cycleMinute: Int)
 
 data class AahnikSummary(
     val aahnik: Aahnik,
@@ -26,6 +27,7 @@ data class AnalysisResult(
     val from: LocalDate,
     val to: LocalDate,
     val points: List<TrendPoint>,
+    /** Average / earliest / latest on the 3 AM–3 AM timeline; display with [TimeText.minute]. */
     val averageMinute: Int?,
     val earliestMinute: Int?,
     val latestMinute: Int?,
@@ -36,7 +38,10 @@ data class AnalysisResult(
     val completionRate: Float?,
     val currentStreak: Int,
     val bestStreak: Int,
-    /** Number of completions that happened in each hour of the day (index 0..23). */
+    /**
+     * Completions per hour of the aahnik day. Index 0 is 3–4 AM, index 23 is 2–3 AM
+     * (clock hour = (index + [DayCycle.START_HOUR]) % 24).
+     */
     val hourCounts: List<Int>,
     val perAahnik: List<AahnikSummary>,
 )
@@ -61,15 +66,15 @@ object AahnikStats {
             ?: minOf(earliestKnown, today)
 
         val inRange = relevant.filter { !it.day.isBefore(from) }
-            .sortedWith(compareBy({ it.day }, { it.minuteOfDay }))
-        val points = inRange.map { TrendPoint(it.aahnikId, it.day, it.minuteOfDay) }
-        val minutes = inRange.map { it.minuteOfDay }
+            .sortedWith(compareBy({ it.day }, { it.cycleMinute }))
+        val points = inRange.map { TrendPoint(it.aahnikId, it.day, it.cycleMinute) }
+        val minutes = inRange.map { it.cycleMinute }
 
         // Residuals around each aahnik's own mean let us measure drift/consistency
         // even when "All" mixes a 5 AM puja with a 9 PM reading.
         val meanById = inRange.groupBy { it.aahnikId }
-            .mapValues { (_, list) -> list.map { it.minuteOfDay }.average() }
-        val residuals = inRange.map { it.day.toEpochDay().toDouble() to (it.minuteOfDay - meanById.getValue(it.aahnikId)) }
+            .mapValues { (_, list) -> list.map { it.cycleMinute }.average() }
+        val residuals = inRange.map { it.day.toEpochDay().toDouble() to (it.cycleMinute - meanById.getValue(it.aahnikId)) }
 
         val spread = if (residuals.size >= 2) {
             sqrt(residuals.sumOf { it.second * it.second } / (residuals.size - 1)).roundToInt()
@@ -85,14 +90,14 @@ object AahnikStats {
                 aahnik = a,
                 count = own.size,
                 possibleDays = maxOf(possible, own.size),
-                averageMinute = own.takeIf { it.isNotEmpty() }?.map { it.minuteOfDay }?.average()?.roundToInt(),
+                averageMinute = own.takeIf { it.isNotEmpty() }?.map { it.cycleMinute }?.average()?.roundToInt(),
             )
         }
         val possibleTotal = perAahnik.sumOf { it.possibleDays }
         val rate = if (possibleTotal == 0) null else perAahnik.sumOf { it.count }.toFloat() / possibleTotal
 
         val hours = MutableList(24) { 0 }
-        minutes.forEach { hours[(it / 60).coerceIn(0, 23)]++ }
+        minutes.forEach { hours[((it - DayCycle.START_MINUTE) / 60).coerceIn(0, 23)]++ }
 
         val (current, best) = streaks(selected, relevant, today)
 
