@@ -22,9 +22,10 @@ An Android app for tracking your daily aahnik and seeing *when* you complete the
 
 **Home-screen widget**
 - Long-press your home screen → Widgets → **Aahnik**, and place it (resizable; 3×2 by default).
-- It shows today's list and a done count. Tap an unfinished aahnik to mark it done (the current time is recorded).
-- Tap a finished aahnik or the header to open the app.
-- It updates whenever you change something in the app, and switches to the new day at 3 AM.
+- It shows today's list and a done count. Tap an aahnik to mark it done (the current time is recorded); tap a done one to undo it. The app does not open.
+- Tap the header to open the app.
+- The app and the widget stay in sync both ways: changes made in either one show up in the other immediately, even while the app is open.
+- It switches to the new day at 3 AM.
 
 ## Look & feel
 

@@ -4,6 +4,10 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -87,7 +91,7 @@ class AahnikDatabase(context: Context) :
             put("position", nextPosition)
             put("created_on", today.toString())
         }
-        return db.insertOrThrow("aahnik", null, values)
+        return db.insertOrThrow("aahnik", null, values).also { notifyChanged() }
     }
 
     fun updateAahnik(id: Long, name: String, icon: String) {
@@ -96,11 +100,13 @@ class AahnikDatabase(context: Context) :
             put("icon", icon)
         }
         writableDatabase.update("aahnik", values, "id = ?", arrayOf(id.toString()))
+        notifyChanged()
     }
 
     /** Deletes the aahnik and (via ON DELETE CASCADE) all of its completion history. */
     fun deleteAahnik(id: Long) {
         writableDatabase.delete("aahnik", "id = ?", arrayOf(id.toString()))
+        notifyChanged()
     }
 
     fun getAllCompletions(): List<Completion> {
@@ -125,11 +131,28 @@ class AahnikDatabase(context: Context) :
     /** Records (or replaces) the completion of [aahnikId] for the aahnik day that [at] falls in. */
     fun markComplete(aahnikId: Long, at: LocalDateTime) {
         writableDatabase.insertWithOnConflict("completion", null, completionValues(aahnikId, at), SQLiteDatabase.CONFLICT_REPLACE)
+        notifyChanged()
     }
 
-    /** Like [markComplete], but keeps an existing time for that day (used by the widget so a double tap can't overwrite it). */
-    fun markCompleteIfAbsent(aahnikId: Long, at: LocalDateTime) {
-        writableDatabase.insertWithOnConflict("completion", null, completionValues(aahnikId, at), SQLiteDatabase.CONFLICT_IGNORE)
+    /**
+     * Widget tap: if [aahnikId] is not done for the aahnik day of [now], record it as done at [now];
+     * if it is already done, undo it. Returns true when it is now done.
+     */
+    fun toggleToday(aahnikId: Long, now: LocalDateTime): Boolean {
+        val db = writableDatabase
+        val day = DayCycle.dayOf(now).toString()
+        val nowDone: Boolean
+        db.beginTransaction()
+        try {
+            val removed = db.delete("completion", "aahnik_id = ? AND day = ?", arrayOf(aahnikId.toString(), day))
+            nowDone = removed == 0
+            if (nowDone) db.insertOrThrow("completion", null, completionValues(aahnikId, now))
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+        notifyChanged()
+        return nowDone
     }
 
     private fun completionValues(aahnikId: Long, at: LocalDateTime) = ContentValues().apply {
@@ -164,6 +187,7 @@ class AahnikDatabase(context: Context) :
             "aahnik_id = ? AND day = ?",
             arrayOf(aahnikId.toString(), day.toString())
         )
+        notifyChanged()
     }
 
     companion object {
@@ -172,6 +196,22 @@ class AahnikDatabase(context: Context) :
 
         @Volatile
         private var instance: AahnikDatabase? = null
+
+        private val _changes = MutableStateFlow(0L)
+
+        /**
+         * Increases after every write, whether it came from the app or the home-screen widget.
+         * Both sides observe it so each sees the other's changes immediately.
+         */
+        val changes: StateFlow<Long> = _changes.asStateFlow()
+
+        internal fun notifyChanged() = _changes.update { it + 1 }
+
+        /** Tests only: forget the shared instance so the next [get] opens a fresh database. */
+        internal fun resetForTests() = synchronized(this) {
+            instance?.close()
+            instance = null
+        }
 
         /** One shared connection for the app and the home-screen widget. */
         fun get(context: Context): AahnikDatabase =

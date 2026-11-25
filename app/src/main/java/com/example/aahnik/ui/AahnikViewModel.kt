@@ -43,7 +43,10 @@ class AahnikViewModel(app: Application) : AndroidViewModel(app) {
     val state: StateFlow<AppState> = _state.asStateFlow()
 
     init {
-        refresh()
+        // Reload whenever anything is written — by this screen or by the home-screen widget.
+        viewModelScope.launch {
+            AahnikDatabase.changes.collect { reload() }
+        }
         // Roll over to the new aahnik day at 3 AM even if the app stays open.
         viewModelScope.launch {
             while (true) {
@@ -54,7 +57,7 @@ class AahnikViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Reloads everything from the database. Also rolls "today" over at 3 AM. */
+    /** Reloads everything from the database (called on resume; also picks up the 3 AM rollover). */
     fun refresh() {
         viewModelScope.launch { reload() }
     }
@@ -88,8 +91,9 @@ class AahnikViewModel(app: Application) : AndroidViewModel(app) {
             writeLock.withLock {
                 withContext(Dispatchers.IO) { block() }
             }
-            reload()
-            AahnikWidget.refreshAll(getApplication())
+            // The database change signal reloads this screen; tell the widget too.
+            // A widget problem must never break the app.
+            runCatching { AahnikWidget.refreshAll(getApplication()) }
         }
     }
 
