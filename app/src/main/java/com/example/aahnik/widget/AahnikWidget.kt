@@ -185,7 +185,10 @@ private fun WidgetContent(data: WidgetData) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(GlanceModifier.defaultWeight()) {
-                    Text("AAHNIK", style = TextStyle(color = Muted, fontSize = 10.sp, fontWeight = FontWeight.Medium))
+                    Text(
+                        "AAHNIK · ENDS ${TimeText.minute(DayCycle.START_MINUTE, data.is24Hour)}".uppercase(Locale.getDefault()),
+                        style = TextStyle(color = Muted, fontSize = 10.sp, fontWeight = FontWeight.Medium),
+                    )
                     Text(
                         data.today.format(headerDate),
                         style = TextStyle(color = White, fontSize = 15.sp, fontWeight = FontWeight.Bold),

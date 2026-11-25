@@ -122,4 +122,43 @@ class AppWidgetSyncTest {
         assertFalse(db.toggleToday(id, LocalDateTime.of(2026, 11, 25, 2, 10)))
         assertTrue(db.getAllCompletions().isEmpty())
     }
+
+    @Test
+    fun homeAndWidgetShowOnlyTheCurrentCycle() {
+        val db = AahnikDatabase.get(app)
+        val cycle = DayCycle.today()
+        val puja = db.addAahnik("Puja", "🪔", cycle.minusDays(5))
+        val mala = db.addAahnik("Mala", "📿", cycle.minusDays(5))
+        // Done in the previous cycle (9 PM the day before): must NOT show as done now.
+        db.markComplete(mala, cycle.minusDays(1).atTime(21, 0))
+        // Done in the current cycle (6 AM): must show as done.
+        db.markComplete(puja, cycle.atTime(6, 0))
+
+        val vm = AahnikViewModel(app)
+        waitUntil("the app has loaded") { vm.state.value.loaded && vm.state.value.aahniks.size == 2 }
+        assertEquals(cycle, vm.state.value.today)
+        assertEquals(setOf(puja), vm.state.value.todayDone.keys)
+
+        val widget = loadWidgetData(app)
+        assertEquals(cycle, widget.today)
+        assertEquals(listOf(puja), widget.items.filter { it.completion != null }.map { it.aahnik.id })
+        assertEquals(1, widget.done)
+    }
+
+    @Test
+    fun afterMidnightUntil3amIsStillTheSameCycle() {
+        val db = AahnikDatabase.get(app)
+        val cycle = DayCycle.today()
+        val katha = db.addAahnik("Katha", "🎵", cycle.minusDays(5))
+        // 12:18 AM on the next calendar date belongs to the current cycle.
+        db.markComplete(katha, cycle.plusDays(1).atTime(0, 18))
+        // 3:05 AM on the next calendar date is the NEXT cycle: not shown yet.
+        val chesta = db.addAahnik("Chesta", "🌙", cycle.minusDays(5))
+        db.markComplete(chesta, cycle.plusDays(1).atTime(3, 5))
+
+        val vm = AahnikViewModel(app)
+        waitUntil("the app has loaded") { vm.state.value.loaded && vm.state.value.aahniks.size == 2 }
+        assertEquals(setOf(katha), vm.state.value.todayDone.keys)
+        assertEquals(listOf(katha), loadWidgetData(app).items.filter { it.completion != null }.map { it.aahnik.id })
+    }
 }

@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.aahnik.data.Aahnik
 import com.example.aahnik.data.Completion
+import com.example.aahnik.data.DayCycle
 import com.example.aahnik.data.TimeText
 import com.example.aahnik.ui.AppState
 import com.example.aahnik.ui.glass.GlassCard
@@ -92,7 +93,9 @@ fun HomeScreen(
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 4.dp)) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = state.today.format(dateFormat).uppercase(Locale.getDefault()),
+                        // The current cycle runs 3 AM–3 AM, so at 12:18 AM this still shows yesterday's date.
+                        text = "${state.today.format(dateFormat)} · ends ${TimeText.minute(DayCycle.START_MINUTE, is24Hour)}"
+                            .uppercase(Locale.getDefault()),
                         style = MaterialTheme.typography.labelMedium,
                         color = AahnikColors.TextMuted,
                     )
