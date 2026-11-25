@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "MyTodoList"
+rootProject.name = "AahnikTracker"
 include(":app")

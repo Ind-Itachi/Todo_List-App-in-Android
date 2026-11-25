@@ -1,0 +1,222 @@
+package com.example.aahnik.data
+
+import android.content.ContentValues
+import android.content.Context
+import android.database.sqlite.SQLiteDatabase
+import android.database.sqlite.SQLiteOpenHelper
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
+
+/**
+ * Local SQLite store.
+ *
+ *  aahnik      – the list of practices you track
+ *  completion  – one row per aahnik per day, with the exact time it was marked done
+ */
+class AahnikDatabase(context: Context) :
+    SQLiteOpenHelper(context.applicationContext, DB_NAME, null, DB_VERSION) {
+
+    override fun onConfigure(db: SQLiteDatabase) {
+        db.setForeignKeyConstraintsEnabled(true)
+    }
+
+    override fun onCreate(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE aahnik (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                icon TEXT NOT NULL,
+                position INTEGER NOT NULL,
+                created_on TEXT NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            """
+            CREATE TABLE completion (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                aahnik_id INTEGER NOT NULL REFERENCES aahnik(id) ON DELETE CASCADE,
+                day TEXT NOT NULL,
+                completed_at INTEGER NOT NULL,
+                minute_of_day INTEGER NOT NULL,
+                UNIQUE(aahnik_id, day)
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE INDEX idx_completion_day ON completion(day)")
+    }
+
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 2) {
+            // v2: the aahnik day runs 3 AM–3 AM. Completions made between midnight and 3 AM
+            // belong to the previous day.
+            db.execSQL(
+                "UPDATE OR IGNORE completion SET day = date(day, '-1 day') WHERE minute_of_day < ${DayCycle.START_MINUTE}"
+            )
+        }
+    }
+
+    fun getAahniks(): List<Aahnik> {
+        val result = mutableListOf<Aahnik>()
+        readableDatabase.rawQuery(
+            "SELECT id, name, icon, position, created_on FROM aahnik ORDER BY position, id",
+            null
+        ).use { c ->
+            while (c.moveToNext()) {
+                result += Aahnik(
+                    id = c.getLong(0),
+                    name = c.getString(1),
+                    icon = c.getString(2),
+                    position = c.getInt(3),
+                    createdOn = LocalDate.parse(c.getString(4)),
+                )
+            }
+        }
+        return result
+    }
+
+    fun addAahnik(name: String, icon: String, today: LocalDate): Long {
+        val db = writableDatabase
+        val nextPosition = db.rawQuery("SELECT COALESCE(MAX(position), -1) + 1 FROM aahnik", null)
+            .use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
+        val values = ContentValues().apply {
+            put("name", name)
+            put("icon", icon)
+            put("position", nextPosition)
+            put("created_on", today.toString())
+        }
+        return db.insertOrThrow("aahnik", null, values).also { notifyChanged() }
+    }
+
+    fun updateAahnik(id: Long, name: String, icon: String) {
+        val values = ContentValues().apply {
+            put("name", name)
+            put("icon", icon)
+        }
+        writableDatabase.update("aahnik", values, "id = ?", arrayOf(id.toString()))
+        notifyChanged()
+    }
+
+    /** Deletes the aahnik and (via ON DELETE CASCADE) all of its completion history. */
+    fun deleteAahnik(id: Long) {
+        writableDatabase.delete("aahnik", "id = ?", arrayOf(id.toString()))
+        notifyChanged()
+    }
+
+    fun getAllCompletions(): List<Completion> {
+        val result = mutableListOf<Completion>()
+        readableDatabase.rawQuery(
+            "SELECT id, aahnik_id, day, completed_at, minute_of_day FROM completion ORDER BY day, minute_of_day",
+            null
+        ).use { c ->
+            while (c.moveToNext()) {
+                result += Completion(
+                    id = c.getLong(0),
+                    aahnikId = c.getLong(1),
+                    day = LocalDate.parse(c.getString(2)),
+                    completedAt = c.getLong(3),
+                    minuteOfDay = c.getInt(4),
+                )
+            }
+        }
+        return result
+    }
+
+    /** Records (or replaces) the completion of [aahnikId] for the aahnik day that [at] falls in. */
+    fun markComplete(aahnikId: Long, at: LocalDateTime) {
+        writableDatabase.insertWithOnConflict("completion", null, completionValues(aahnikId, at), SQLiteDatabase.CONFLICT_REPLACE)
+        notifyChanged()
+    }
+
+    /**
+     * Widget tap: if [aahnikId] is not done for the aahnik day of [now], record it as done at [now];
+     * if it is already done, undo it. Returns true when it is now done.
+     */
+    fun toggleToday(aahnikId: Long, now: LocalDateTime): Boolean {
+        val db = writableDatabase
+        val day = DayCycle.dayOf(now).toString()
+        val nowDone: Boolean
+        db.beginTransaction()
+        try {
+            val removed = db.delete("completion", "aahnik_id = ? AND day = ?", arrayOf(aahnikId.toString(), day))
+            nowDone = removed == 0
+            if (nowDone) db.insertOrThrow("completion", null, completionValues(aahnikId, now))
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+        notifyChanged()
+        return nowDone
+    }
+
+    private fun completionValues(aahnikId: Long, at: LocalDateTime) = ContentValues().apply {
+        put("aahnik_id", aahnikId)
+        put("day", DayCycle.dayOf(at).toString())
+        put("completed_at", at.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
+        put("minute_of_day", at.hour * 60 + at.minute)
+    }
+
+    fun getCompletionsForDay(day: LocalDate): List<Completion> {
+        val result = mutableListOf<Completion>()
+        readableDatabase.rawQuery(
+            "SELECT id, aahnik_id, day, completed_at, minute_of_day FROM completion WHERE day = ?",
+            arrayOf(day.toString())
+        ).use { c ->
+            while (c.moveToNext()) {
+                result += Completion(
+                    id = c.getLong(0),
+                    aahnikId = c.getLong(1),
+                    day = LocalDate.parse(c.getString(2)),
+                    completedAt = c.getLong(3),
+                    minuteOfDay = c.getInt(4),
+                )
+            }
+        }
+        return result
+    }
+
+    fun unmark(aahnikId: Long, day: LocalDate) {
+        writableDatabase.delete(
+            "completion",
+            "aahnik_id = ? AND day = ?",
+            arrayOf(aahnikId.toString(), day.toString())
+        )
+        notifyChanged()
+    }
+
+    companion object {
+        private const val DB_NAME = "aahnik.db"
+        private const val DB_VERSION = 2
+
+        @Volatile
+        private var instance: AahnikDatabase? = null
+
+        private val _changes = MutableStateFlow(0L)
+
+        /**
+         * Increases after every write, whether it came from the app or the home-screen widget.
+         * Both sides observe it so each sees the other's changes immediately.
+         */
+        val changes: StateFlow<Long> = _changes.asStateFlow()
+
+        internal fun notifyChanged() = _changes.update { it + 1 }
+
+        /** Tests only: forget the shared instance so the next [get] opens a fresh database. */
+        internal fun resetForTests() = synchronized(this) {
+            instance?.close()
+            instance = null
+        }
+
+        /** One shared connection for the app and the home-screen widget. */
+        fun get(context: Context): AahnikDatabase =
+            instance ?: synchronized(this) {
+                instance ?: AahnikDatabase(context.applicationContext).also { instance = it }
+            }
+    }
+}
